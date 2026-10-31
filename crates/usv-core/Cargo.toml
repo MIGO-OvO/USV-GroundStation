@@ -1,0 +1,33 @@
+[package]
+name = "usv-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde", "dialect-usv"]
+serde = []
+dialect-usv = []
+
+[dependencies]
+mavlink = { version = "0.21", default-features = false, features = ["std", "serde", "dialect-ardupilotmega", "mav2-message-extensions"] }
+mavlink-core = { version = "0.21", default-features = false, features = ["std", "serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_arrays = "0.2"
+num-traits = "0.2"
+num-derive = "0.4"
+bitflags = { version = "2", features = ["serde"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+zip = { version = "4", default-features = false, features = ["deflate"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[target.'cfg(windows)'.dependencies]
+serialport = { version = "4", default-features = false }
+
+[build-dependencies]
+mavlink-bindgen = { version = "0.21", features = ["serde", "mav2-message-extensions"] }
+
+[dev-dependencies]
+tempfile = "3"

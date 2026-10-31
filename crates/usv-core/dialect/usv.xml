@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- MAVLink common message layouts (MIT). command remains uint16_t on the wire.
+     The local bindings deliberately omit the enum annotation so 31010..31019
+     survive decoding. CRC, field types, names and extension boundaries match common.xml. -->
+<mavlink><version>3</version><dialect>0</dialect><messages>
+  <message id="75" name="COMMAND_INT">
+    <description>Command with integer coordinates.</description>
+    <field type="uint8_t" name="target_system">System</field>
+    <field type="uint8_t" name="target_component">Component</field>
+    <field type="uint8_t" name="frame">Frame</field>
+    <field type="uint16_t" name="command">Command</field>
+    <field type="uint8_t" name="current">Current</field>
+    <field type="uint8_t" name="autocontinue">Autocontinue</field>
+    <field type="float" name="param1">Parameter 1</field>
+    <field type="float" name="param2">Parameter 2</field>
+    <field type="float" name="param3">Parameter 3</field>
+    <field type="float" name="param4">Parameter 4</field>
+    <field type="int32_t" name="x">Latitude</field>
+    <field type="int32_t" name="y">Longitude</field>
+    <field type="float" name="z">Altitude</field>
+  </message>
+  <message id="76" name="COMMAND_LONG">
+    <description>Command with float parameters.</description>
+    <field type="uint8_t" name="target_system">System</field>
+    <field type="uint8_t" name="target_component">Component</field>
+    <field type="uint16_t" name="command">Command</field>
+    <field type="uint8_t" name="confirmation">Confirmation</field>
+    <field type="float" name="param1">Parameter 1</field>
+    <field type="float" name="param2">Parameter 2</field>
+    <field type="float" name="param3">Parameter 3</field>
+    <field type="float" name="param4">Parameter 4</field>
+    <field type="float" name="param5">Parameter 5</field>
+    <field type="float" name="param6">Parameter 6</field>
+    <field type="float" name="param7">Parameter 7</field>
+  </message>
+  <message id="77" name="COMMAND_ACK">
+    <description>Uncorrelated command acknowledgement.</description>
+    <field type="uint16_t" name="command">Command</field>
+    <field type="uint8_t" name="result">Result</field>
+    <extensions/>
+    <field type="uint8_t" name="progress">Progress</field>
+    <field type="int32_t" name="result_param2">Result parameter</field>
+    <field type="uint8_t" name="target_system">System</field>
+    <field type="uint8_t" name="target_component">Component</field>
+  </message>
+</messages></mavlink>
