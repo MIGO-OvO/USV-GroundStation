@@ -1,5 +1,6 @@
 pub mod diagnostics;
 pub mod identity;
+pub mod maps;
 pub mod mission;
 pub mod payload;
 pub mod ros;

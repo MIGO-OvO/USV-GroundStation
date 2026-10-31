@@ -4169,6 +4169,7 @@ dependencies = [
  "serde_arrays",
  "serde_json",
  "serialport",
+ "sha2",
  "tempfile",
  "uuid",
  "zip",
@@ -4182,6 +4183,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tokio",
  "usv-core",
 ]
 

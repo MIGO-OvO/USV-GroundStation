@@ -1,57 +1,639 @@
-use mavlink::{MavHeader,Message,MessageData};
-use serde_json::{Value,json};
-use usv_core::{wire::{self,WireMessage,standard::*,commands},telemetry::{Telemetry,PAYLOAD_FIELDS},payload::{self,Reassembler,PayloadEvent,RequestRecord,RequestState},identity::IdentityStore,station::{Engine,Intent}};
+use mavlink::{MavHeader, Message, MessageData};
+use serde_json::{Value, json};
+use usv_core::{
+    identity::IdentityStore,
+    payload::{self, PayloadEvent, Reassembler, RequestRecord, RequestState},
+    station::{Engine, Intent},
+    telemetry::{PAYLOAD_FIELDS, Telemetry},
+    wire::{self, WireMessage, commands, standard::*},
+};
 
-fn fixture()->Value{serde_json::from_str(include_str!("fixtures/protocol-v1.json")).unwrap()}
-fn bytes(s:&str)->Vec<u8>{(0..s.len()).step_by(2).map(|i|u8::from_str_radix(&s[i..i+2],16).unwrap()).collect()}
-fn header(component:u8)->MavHeader{MavHeader{system_id:1,component_id:component,sequence:42}}
-fn heartbeat(component:u8)->WireMessage{MavMessage::HEARTBEAT(HEARTBEAT_DATA{mavtype:if component==1{MavType::MAV_TYPE_SURFACE_BOAT}else{MavType::MAV_TYPE_ONBOARD_CONTROLLER},autopilot:if component==1{MavAutopilot::MAV_AUTOPILOT_ARDUPILOTMEGA}else{MavAutopilot::MAV_AUTOPILOT_INVALID},mavlink_version:3,..Default::default()}).into()}
-fn event()->PayloadEvent{serde_json::from_value(fixture()["events"][0].clone()).unwrap()}
-fn record(command:u16)->RequestRecord{RequestRecord::new(1,(254,190),(2,3),command,[0.0,0.0],100,1000,0,"test")}
-fn prepared(dir:&std::path::Path)->Engine {
-    let mut e=Engine::new(dir);e.ingest(header(1),heartbeat(1),100);e.ingest(header(191),heartbeat(191),100);
-    for (name,value) in [("USV_PROTO",1.0),("USV_STAT",0.0),("USV_VLD",1.0),("USV_BSET",1.0),("USV_VOLT",1.2)]{e.telemetry.put(name,value,100,191);}
+fn fixture() -> Value {
+    serde_json::from_str(include_str!("fixtures/protocol-v1.json")).unwrap()
+}
+fn bytes(s: &str) -> Vec<u8> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
+}
+fn header(component: u8) -> MavHeader {
+    MavHeader {
+        system_id: 1,
+        component_id: component,
+        sequence: 42,
+    }
+}
+fn heartbeat(component: u8) -> WireMessage {
+    MavMessage::HEARTBEAT(HEARTBEAT_DATA {
+        mavtype: if component == 1 {
+            MavType::MAV_TYPE_SURFACE_BOAT
+        } else {
+            MavType::MAV_TYPE_ONBOARD_CONTROLLER
+        },
+        autopilot: if component == 1 {
+            MavAutopilot::MAV_AUTOPILOT_ARDUPILOTMEGA
+        } else {
+            MavAutopilot::MAV_AUTOPILOT_INVALID
+        },
+        mavlink_version: 3,
+        ..Default::default()
+    })
+    .into()
+}
+fn event() -> PayloadEvent {
+    serde_json::from_value(fixture()["events"][0].clone()).unwrap()
+}
+fn record(command: u16) -> RequestRecord {
+    RequestRecord::new(
+        1,
+        (254, 190),
+        (2, 3),
+        command,
+        [0.0, 0.0],
+        100,
+        1000,
+        0,
+        "test",
+    )
+}
+fn prepared(dir: &std::path::Path) -> Engine {
+    let mut e = Engine::new(dir);
+    e.ingest(header(1), heartbeat(1), 100);
+    e.ingest(header(191), heartbeat(191), 100);
+    for (name, value) in [
+        ("USV_PROTO", 1.0),
+        ("USV_STAT", 0.0),
+        ("USV_VLD", 1.0),
+        ("USV_BSET", 1.0),
+        ("USV_VOLT", 1.2),
+    ] {
+        e.telemetry.put(name, value, 100, 191);
+    }
     e
 }
-fn send(e:&mut Engine,c:u16,now:u64)->String{e.intent(Intent::Payload{command:c,param1:0.0,param2:0.0,confirmed:true},now).unwrap()["request_id"].as_str().unwrap().into()}
-fn ingest_event(e:&mut Engine,id:&str,phase:&str,outcome:&str,seq:u32,now:u64) {
-    let r=e.records.iter().find(|r|r.id==id).unwrap();let mut ev=event();ev.command=r.command;ev.request=r.request;ev.session=r.session;ev.seq=seq;ev.phase=phase.into();ev.outcome=outcome.into();
-    if phase=="terminal"{ev.attempt_id="12345678123456781234567812345678".into();}
-    let text=format!("USVE1:{}",serde_json::to_string(&ev).unwrap());
-    let mut chunks:Vec<_>=text.as_bytes().chunks(50).map(|c|c.to_vec()).collect();if text.len()%50==0{chunks.push(vec![]);}
-    for (seq,chunk) in chunks.iter().enumerate(){let mut data=[0u8;50];data[..chunk.len()].copy_from_slice(chunk);e.ingest(header(191),MavMessage::STATUSTEXT(STATUSTEXT_DATA{text:data.into(),id:(now%65534+1) as u16,chunk_seq:seq as u8,..Default::default()}).into(),now);}
+fn send(e: &mut Engine, c: u16, now: u64) -> String {
+    e.intent(
+        Intent::Payload {
+            command: c,
+            param1: 0.0,
+            param2: 0.0,
+            confirmed: true,
+        },
+        now,
+    )
+    .unwrap()["request_id"]
+        .as_str()
+        .unwrap()
+        .into()
+}
+fn ingest_event(e: &mut Engine, id: &str, phase: &str, outcome: &str, seq: u32, now: u64) {
+    let r = e.records.iter().find(|r| r.id == id).unwrap();
+    let mut ev = event();
+    ev.command = r.command;
+    ev.request = r.request;
+    ev.session = r.session;
+    ev.seq = seq;
+    ev.phase = phase.into();
+    ev.outcome = outcome.into();
+    if phase == "terminal" {
+        ev.attempt_id = "12345678123456781234567812345678".into();
+    }
+    let text = format!("USVE1:{}", serde_json::to_string(&ev).unwrap());
+    let mut chunks: Vec<_> = text.as_bytes().chunks(50).map(|c| c.to_vec()).collect();
+    if text.len() % 50 == 0 {
+        chunks.push(vec![]);
+    }
+    for (seq, chunk) in chunks.iter().enumerate() {
+        let mut data = [0u8; 50];
+        data[..chunk.len()].copy_from_slice(chunk);
+        e.ingest(
+            header(191),
+            MavMessage::STATUSTEXT(STATUSTEXT_DATA {
+                text: data.into(),
+                id: (now % 65534 + 1) as u16,
+                chunk_seq: seq as u8,
+                ..Default::default()
+            })
+            .into(),
+            now,
+        );
+    }
 }
 
-#[test] fn all_pymavlink_golden_frames_roundtrip_byte_exact() {
-    for f in fixture()["frames"].as_array().unwrap(){let b=bytes(f["hex"].as_str().unwrap());let mut decoder=wire::Decoder::default();let messages=decoder.push(&b);
-        assert_eq!(messages.len(),1,"{} rejected={}",f["name"],decoder.rejected);let (h,m)=&messages[0];assert_eq!(h.system_id as u64,f["system"].as_u64().unwrap());assert_eq!(m.message_id() as u64,f["message_id"].as_u64().unwrap());assert_eq!(wire::encode(*h,m).unwrap(),b,"{}",f["name"]);}
+#[test]
+fn all_pymavlink_golden_frames_roundtrip_byte_exact() {
+    for f in fixture()["frames"].as_array().unwrap() {
+        let b = bytes(f["hex"].as_str().unwrap());
+        let mut decoder = wire::Decoder::default();
+        let messages = decoder.push(&b);
+        assert_eq!(
+            messages.len(),
+            1,
+            "{} rejected={}",
+            f["name"],
+            decoder.rejected
+        );
+        let (h, m) = &messages[0];
+        assert_eq!(h.system_id as u64, f["system"].as_u64().unwrap());
+        assert_eq!(m.message_id() as u64, f["message_id"].as_u64().unwrap());
+        assert_eq!(wire::encode(*h, m).unwrap(), b, "{}", f["name"]);
+    }
 }
-#[test] fn command_extensions_preserve_standard_crc_extras(){assert_eq!(commands::COMMAND_LONG_DATA::EXTRA_CRC,152);assert_eq!(commands::COMMAND_ACK_DATA::EXTRA_CRC,143);assert_eq!(commands::COMMAND_INT_DATA::EXTRA_CRC,158);}
-#[test] fn stream_decoder_retains_every_possible_split(){for f in fixture()["frames"].as_array().unwrap(){let b=bytes(f["hex"].as_str().unwrap());for split in 1..b.len(){let mut d=wire::Decoder::default();assert!(d.push(&b[..split]).is_empty());assert_eq!(d.push(&b[split..]).len(),1);}}}
-#[test] fn corrupt_crc_is_rejected_and_stream_recovers(){let b=bytes(fixture()["frames"][0]["hex"].as_str().unwrap());let mut bad=b.clone();bad[10]^=0x10;bad.extend_from_slice(&b);let mut d=wire::Decoder::default();assert_eq!(d.push(&bad).len(),1);assert!(d.rejected>0);}
-#[test] fn command_int_roundtrip_keeps_integer_coordinates(){let m:WireMessage=commands::MavMessage::COMMAND_INT(commands::COMMAND_INT_DATA{target_system:1,target_component:1,command:192,frame:6,x:253141670,y:1104127780,..Default::default()}).into();let b=wire::encode(header(190),&m).unwrap();assert_eq!(wire::Decoder::default().push(&b)[0].1,m);}
-#[test] fn payload_heartbeat_cannot_select_flight_controller(){let mut t=Telemetry::default();assert!(!t.ingest(header(191),&heartbeat(191),100,None));assert_eq!(t.system_id,None);t.ingest(header(1),&heartbeat(1),100,Some(2));assert_eq!(t.system_id,None);t.ingest(header(1),&heartbeat(1),100,Some(1));assert_eq!(t.system_id,Some(1));}
-#[test] fn telemetry_maps_all_26_fields_and_expires_separately(){let mut t=Telemetry::default();t.ingest(header(1),&heartbeat(1),100,None);for f in fixture()["frames"].as_array().unwrap().iter().filter(|f|PAYLOAD_FIELDS.contains(&f["name"].as_str().unwrap())){let m=wire::Decoder::default().push(&bytes(f["hex"].as_str().unwrap())).remove(0);t.ingest(m.0,&m.1,200,None);}for (i,name) in PAYLOAD_FIELDS.iter().enumerate(){assert_eq!(t.get(name,200),Some(i as f64));assert_eq!(t.get(name,3201),None);}assert!(!t.payload_online(200));t.ingest(header(191),&heartbeat(191),200,None);assert!(t.payload_online(200));assert!(!t.payload_online(5201));}
-#[test] fn foreign_system_named_values_cannot_update_target(){let mut t=Telemetry::default();t.ingest(header(1),&heartbeat(1),100,None);let mut h=header(191);h.system_id=2;t.ingest(h,&MavMessage::NAMED_VALUE_FLOAT(NAMED_VALUE_FLOAT_DATA{name:"USV_PROTO".into(),value:1.0,..Default::default()}).into(),100,None);assert_eq!(t.get("USV_PROTO",100),None);}
-#[test] fn session_allocation_is_durable_and_process_unique(){let d=tempfile::tempdir().unwrap();let p=d.path().join("i.db");let mut a=IdentityStore::open(&p).unwrap();let mut b=IdentityStore::open(&p).unwrap();assert_ne!(a.session,b.session);assert_eq!(a.next_request().unwrap(),(1,1));assert_eq!(a.next_request().unwrap(),(1,2));assert_eq!(b.next_request().unwrap(),(2,1));drop(a);assert_eq!(IdentityStore::open(&p).unwrap().session,3);}
-#[test] fn exhausted_session_refuses_identity_instead_of_wrapping(){let d=tempfile::tempdir().unwrap();let p=d.path().join("i.db");drop(IdentityStore::open(&p).unwrap());rusqlite::Connection::open(&p).unwrap().execute("UPDATE identity SET session=16777215",[]).unwrap();assert!(IdentityStore::open(&p).is_err());}
-#[test] fn identity_store_roundtrips_request(){let d=tempfile::tempdir().unwrap();let s=IdentityStore::open(&d.path().join("i.db")).unwrap();let r=record(31010);s.save(&r).unwrap();assert_eq!(s.load().unwrap()[0].id,r.id);}
-#[test] fn golden_ros_events_pass_strict_validator(){for e in fixture()["events"].as_array().unwrap(){assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_ok());}}
-#[test] fn malformed_event_identity_and_terminal_are_rejected(){for (key,value) in [("v",json!(2)),("request",json!(0)),("session",json!(16777216)),("seq",json!(true)),("request",json!(1.5)),("cleanup_failed",json!("false")),("sender_system",json!(0)),("attempt_id",json!("invalid"))]{let mut e=fixture()["events"][0].clone();e[key]=value;assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_err(),"{key}");}let mut e=fixture()["events"][0].clone();e["phase"]=json!("terminal");assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_err());}
-#[test] fn matching_accepted_does_not_finish_sampling(){let mut records=vec![record(31010)];payload::apply_event(&mut records,event(),1,1,200,"test").unwrap();assert_eq!(records[0].state,RequestState::Accepted);assert!(!records[0].retired);}
-#[test] fn stale_event_or_wrong_request_cannot_end_new_request(){let mut records=vec![record(31010)];let mut e=event();e.session=1;assert!(payload::apply_event(&mut records,e,1,1,200,"test").is_err());assert_eq!(records[0].state,RequestState::Created);payload::apply_event(&mut records,event(),1,1,200,"test").unwrap();assert!(payload::apply_event(&mut records,event(),1,1,300,"test").is_err());}
-#[test] fn retry_keeps_identity_params_and_changes_confirmation_only(){let mut r=record(31010);r.sent(100,"test");assert!(r.needs_retry(1100,0));let WireMessage::Command(commands::MavMessage::COMMAND_LONG(a))=r.message()else{panic!()};r.sent(1100,"test");let WireMessage::Command(commands::MavMessage::COMMAND_LONG(b))=r.message()else{panic!()};assert_eq!([a.param1,a.param2,a.param3,a.param4],[b.param1,b.param2,b.param3,b.param4]);assert_eq!(b.confirmation,a.confirmation+1);assert!(!r.needs_retry(2100,1));r.retry_allowed=false;assert!(!r.needs_retry(2100,0));}
-#[test] fn statustext_reassembles_real_ros_golden_events(){let f=fixture();let mut a=Reassembler::default();let mut output=vec![];for frame in f["frames"].as_array().unwrap().iter().filter(|v|v["name"].as_str().unwrap().starts_with("event_")){let (_,WireMessage::Standard(MavMessage::STATUSTEXT(s)))=wire::Decoder::default().push(&bytes(frame["hex"].as_str().unwrap())).remove(0)else{panic!()};if let Some(text)=a.push(1,191,s.id,s.chunk_seq,&s.text[..],100).unwrap(){output.push(PayloadEvent::parse(&text).unwrap());}}assert_eq!(output.len(),3);assert_eq!(output[2].outcome,"succeeded");}
-#[test] fn statustext_rejects_missing_reordered_expired_and_cross_source_chunks(){for (component,seq,now) in [(191,2,100),(191,1,1101),(192,1,100)]{let mut a=Reassembler::default();a.push(1,191,10,0,&[b'a';50],0).unwrap();assert!(a.push(1,component,10,seq,&[0;50],now).is_err());}}
-#[test] fn statustext_overflow_is_bounded(){let mut a=Reassembler::default();for seq in 0..15{assert!(a.push(1,191,10,seq,&[b'a';50],100).unwrap().is_none());}assert!(a.push(1,191,10,15,&[b'a';50],100).is_err());}
-#[test] fn stale_capability_blocks_start_but_stops_remain_available(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());e.telemetry.ingest(header(1),&heartbeat(1),4000,None);e.telemetry.ingest(header(191),&heartbeat(191),4000,None);assert!(e.payload_gate(31010,4000).is_err());for c in [31011,31016,31019]{assert!(e.payload_gate(c,4000).is_ok());}}
-#[test] fn manual_point_sample_is_allowed_without_gps(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());assert_eq!(e.telemetry.get("gps_fix",100),None);send(&mut e,31010,100);assert_eq!(e.records.len(),1);assert!(e.intent(Intent::Mode{mode:10,confirmed:true},100).is_err());}
-#[test] fn standard_ack_never_completes_correlated_start(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());let id=send(&mut e,31010,100);let ack=commands::MavMessage::COMMAND_ACK(commands::COMMAND_ACK_DATA{command:31010,result:0,target_system:254,target_component:190,..Default::default()}).into();e.ingest(header(191),ack,200);let r=e.records.iter().find(|r|r.id==id).unwrap();assert!(!r.receipt);assert_eq!(r.state,RequestState::Created);}
-#[test] fn three_distinct_stops_can_overlap_waiting_sampling(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());send(&mut e,31010,100);for c in [31011,31016,31019]{send(&mut e,c,101);}assert_eq!(e.records.len(),4);assert_eq!(e.records[1].stop_targets,vec![e.records[0].id.clone()]);assert!(e.records[3].stop_targets.is_empty());}
-#[test] fn timeout_and_same_idle_are_not_completion(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());send(&mut e,31010,100);e.records[0].sent(100,"test");e.telemetry.put("USV_STAT",0.0,5101,191);e.tick(5101);assert_eq!(e.records[0].state,RequestState::Unknown);assert!(!e.records[0].retired);assert!(e.safety.outputs_unknown);}
-#[test] fn late_terminal_and_new_idle_reconcile_unknown_request(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());let id=send(&mut e,31010,100);e.records[0].sent(100,"test");e.tick(5101);ingest_event(&mut e,&id,"terminal","succeeded",2,5200);assert!(!e.records[0].retired);e.telemetry.put("USV_STAT",0.0,5201,191);e.tick(5201);assert!(e.records[0].retired);assert!(!e.safety.outputs_unknown);}
-#[test] fn ads_stop_does_not_release_unknown_pumps(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());send(&mut e,31010,100);e.safety.outputs_unknown=true;let id=send(&mut e,31019,110);ingest_event(&mut e,&id,"request","accepted",1,200);e.telemetry.put("USV_STAT",0.0,201,191);e.tick(201);assert!(!e.records[0].retired);assert!(e.safety.outputs_unknown);}
-#[test] fn full_stop_requires_post_receipt_idle_then_releases_old_task(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());send(&mut e,31010,100);e.safety.outputs_unknown=true;let id=send(&mut e,31011,110);e.telemetry.put("USV_STAT",0.0,190,191);ingest_event(&mut e,&id,"request","accepted",1,200);assert!(!e.records[0].retired);assert!(e.safety.outputs_unknown);e.telemetry.put("USV_STAT",0.0,201,191);e.tick(201);assert!(e.records[0].retired);assert!(!e.safety.outputs_unknown);}
-#[test] fn disconnect_suppresses_retries_and_restart_retains_unknown(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());send(&mut e,31010,100);e.records[0].sent(100,"test");e.lose_link(200,"test disconnect");assert!(!e.records[0].needs_retry(1100,e.telemetry.generation));drop(e);let e=Engine::new(d.path());assert_eq!(e.records[0].state,RequestState::Unknown);assert!(!e.records[0].retry_allowed);assert!(e.safety.outputs_unknown);}
-#[test] fn propulsion_and_payload_emergency_confirmations_are_independent(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());e.intent(Intent::EmergencyStop{confirmed:true},110).unwrap();assert!(e.safety.emergency_latched);assert!(!e.safety.propulsion_confirmed);let id=e.safety.stop_request.clone().unwrap();ingest_event(&mut e,&id,"request","accepted",1,200);assert!(e.safety.payload_confirmed);assert!(!e.safety.propulsion_confirmed);assert!(e.intent(Intent::VerifyStop{onsite_confirmed:true},200).is_err());}
-#[test] fn no_physical_action_without_operator_confirmation(){let d=tempfile::tempdir().unwrap();let mut e=prepared(d.path());assert!(e.intent(Intent::Payload{command:31010,param1:0.0,param2:0.0,confirmed:false},100).is_err());assert!(e.intent(Intent::Arm{armed:true,confirmed:false},100).is_err());assert!(e.intent(Intent::EmergencyStop{confirmed:false},100).is_err());assert!(e.records.is_empty());}
+#[test]
+fn command_extensions_preserve_standard_crc_extras() {
+    assert_eq!(commands::COMMAND_LONG_DATA::EXTRA_CRC, 152);
+    assert_eq!(commands::COMMAND_ACK_DATA::EXTRA_CRC, 143);
+    assert_eq!(commands::COMMAND_INT_DATA::EXTRA_CRC, 158);
+}
+#[test]
+fn stream_decoder_retains_every_possible_split() {
+    for f in fixture()["frames"].as_array().unwrap() {
+        let b = bytes(f["hex"].as_str().unwrap());
+        for split in 1..b.len() {
+            let mut d = wire::Decoder::default();
+            assert!(d.push(&b[..split]).is_empty());
+            assert_eq!(d.push(&b[split..]).len(), 1);
+        }
+    }
+}
+#[test]
+fn corrupt_crc_is_rejected_and_stream_recovers() {
+    let b = bytes(fixture()["frames"][0]["hex"].as_str().unwrap());
+    let mut bad = b.clone();
+    bad[10] ^= 0x10;
+    bad.extend_from_slice(&b);
+    let mut d = wire::Decoder::default();
+    assert_eq!(d.push(&bad).len(), 1);
+    assert!(d.rejected > 0);
+}
+#[test]
+fn command_int_roundtrip_keeps_integer_coordinates() {
+    let m: WireMessage = commands::MavMessage::COMMAND_INT(commands::COMMAND_INT_DATA {
+        target_system: 1,
+        target_component: 1,
+        command: 192,
+        frame: 6,
+        x: 253141670,
+        y: 1104127780,
+        ..Default::default()
+    })
+    .into();
+    let b = wire::encode(header(190), &m).unwrap();
+    assert_eq!(wire::Decoder::default().push(&b)[0].1, m);
+}
+#[test]
+fn payload_heartbeat_cannot_select_flight_controller() {
+    let mut t = Telemetry::default();
+    assert!(!t.ingest(header(191), &heartbeat(191), 100, None));
+    assert_eq!(t.system_id, None);
+    t.ingest(header(1), &heartbeat(1), 100, Some(2));
+    assert_eq!(t.system_id, None);
+    t.ingest(header(1), &heartbeat(1), 100, Some(1));
+    assert_eq!(t.system_id, Some(1));
+}
+#[test]
+fn telemetry_maps_all_26_fields_and_expires_separately() {
+    let mut t = Telemetry::default();
+    t.ingest(header(1), &heartbeat(1), 100, None);
+    for f in fixture()["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|f| PAYLOAD_FIELDS.contains(&f["name"].as_str().unwrap()))
+    {
+        let m = wire::Decoder::default()
+            .push(&bytes(f["hex"].as_str().unwrap()))
+            .remove(0);
+        t.ingest(m.0, &m.1, 200, None);
+    }
+    for (i, name) in PAYLOAD_FIELDS.iter().enumerate() {
+        assert_eq!(t.get(name, 200), Some(i as f64));
+        assert_eq!(t.get(name, 3201), None);
+    }
+    assert!(!t.payload_online(200));
+    t.ingest(header(191), &heartbeat(191), 200, None);
+    assert!(t.payload_online(200));
+    assert!(!t.payload_online(5201));
+}
+#[test]
+fn foreign_system_named_values_cannot_update_target() {
+    let mut t = Telemetry::default();
+    t.ingest(header(1), &heartbeat(1), 100, None);
+    let mut h = header(191);
+    h.system_id = 2;
+    t.ingest(
+        h,
+        &MavMessage::NAMED_VALUE_FLOAT(NAMED_VALUE_FLOAT_DATA {
+            name: "USV_PROTO".into(),
+            value: 1.0,
+            ..Default::default()
+        })
+        .into(),
+        100,
+        None,
+    );
+    assert_eq!(t.get("USV_PROTO", 100), None);
+}
+#[test]
+fn session_allocation_is_durable_and_process_unique() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("i.db");
+    let mut a = IdentityStore::open(&p).unwrap();
+    let mut b = IdentityStore::open(&p).unwrap();
+    assert_ne!(a.session, b.session);
+    assert_eq!(a.next_request().unwrap(), (1, 1));
+    assert_eq!(a.next_request().unwrap(), (1, 2));
+    assert_eq!(b.next_request().unwrap(), (2, 1));
+    drop(a);
+    assert_eq!(IdentityStore::open(&p).unwrap().session, 3);
+}
+#[test]
+fn exhausted_session_refuses_identity_instead_of_wrapping() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("i.db");
+    drop(IdentityStore::open(&p).unwrap());
+    rusqlite::Connection::open(&p)
+        .unwrap()
+        .execute("UPDATE identity SET session=16777215", [])
+        .unwrap();
+    assert!(IdentityStore::open(&p).is_err());
+}
+#[test]
+fn identity_store_roundtrips_request() {
+    let d = tempfile::tempdir().unwrap();
+    let s = IdentityStore::open(&d.path().join("i.db")).unwrap();
+    let r = record(31010);
+    s.save(&r).unwrap();
+    assert_eq!(s.load().unwrap()[0].id, r.id);
+}
+#[test]
+fn golden_ros_events_pass_strict_validator() {
+    for e in fixture()["events"].as_array().unwrap() {
+        assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_ok());
+    }
+}
+#[test]
+fn malformed_event_identity_and_terminal_are_rejected() {
+    for (key, value) in [
+        ("v", json!(2)),
+        ("request", json!(0)),
+        ("session", json!(16777216)),
+        ("seq", json!(true)),
+        ("request", json!(1.5)),
+        ("cleanup_failed", json!("false")),
+        ("sender_system", json!(0)),
+        ("attempt_id", json!("invalid")),
+    ] {
+        let mut e = fixture()["events"][0].clone();
+        e[key] = value;
+        assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_err(), "{key}");
+    }
+    let mut e = fixture()["events"][0].clone();
+    e["phase"] = json!("terminal");
+    assert!(PayloadEvent::parse(&format!("USVE1:{e}")).is_err());
+}
+#[test]
+fn matching_accepted_does_not_finish_sampling() {
+    let mut records = vec![record(31010)];
+    payload::apply_event(&mut records, event(), 1, 1, 200, "test").unwrap();
+    assert_eq!(records[0].state, RequestState::Accepted);
+    assert!(!records[0].retired);
+}
+#[test]
+fn stale_event_or_wrong_request_cannot_end_new_request() {
+    let mut records = vec![record(31010)];
+    let mut e = event();
+    e.session = 1;
+    assert!(payload::apply_event(&mut records, e, 1, 1, 200, "test").is_err());
+    assert_eq!(records[0].state, RequestState::Created);
+    payload::apply_event(&mut records, event(), 1, 1, 200, "test").unwrap();
+    assert!(payload::apply_event(&mut records, event(), 1, 1, 300, "test").is_err());
+}
+#[test]
+fn retry_keeps_identity_params_and_changes_confirmation_only() {
+    let mut r = record(31010);
+    r.sent(100, "test");
+    assert!(r.needs_retry(1100, 0));
+    let WireMessage::Command(commands::MavMessage::COMMAND_LONG(a)) = r.message() else {
+        panic!()
+    };
+    r.sent(1100, "test");
+    let WireMessage::Command(commands::MavMessage::COMMAND_LONG(b)) = r.message() else {
+        panic!()
+    };
+    assert_eq!(
+        [a.param1, a.param2, a.param3, a.param4],
+        [b.param1, b.param2, b.param3, b.param4]
+    );
+    assert_eq!(b.confirmation, a.confirmation + 1);
+    assert!(!r.needs_retry(2100, 1));
+    r.retry_allowed = false;
+    assert!(!r.needs_retry(2100, 0));
+}
+#[test]
+fn statustext_reassembles_real_ros_golden_events() {
+    let f = fixture();
+    let mut a = Reassembler::default();
+    let mut output = vec![];
+    for frame in f["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|v| v["name"].as_str().unwrap().starts_with("event_"))
+    {
+        let (_, WireMessage::Standard(MavMessage::STATUSTEXT(s))) = wire::Decoder::default()
+            .push(&bytes(frame["hex"].as_str().unwrap()))
+            .remove(0)
+        else {
+            panic!()
+        };
+        if let Some(text) = a.push(1, 191, s.id, s.chunk_seq, &s.text[..], 100).unwrap() {
+            output.push(PayloadEvent::parse(&text).unwrap());
+        }
+    }
+    assert_eq!(output.len(), 3);
+    assert_eq!(output[2].outcome, "succeeded");
+}
+#[test]
+fn statustext_rejects_missing_reordered_expired_and_cross_source_chunks() {
+    for (component, seq, now) in [(191, 2, 100), (191, 1, 1101), (192, 1, 100)] {
+        let mut a = Reassembler::default();
+        a.push(1, 191, 10, 0, &[b'a'; 50], 0).unwrap();
+        assert!(a.push(1, component, 10, seq, &[0; 50], now).is_err());
+    }
+}
+#[test]
+fn statustext_overflow_is_bounded() {
+    let mut a = Reassembler::default();
+    for seq in 0..15 {
+        assert!(a.push(1, 191, 10, seq, &[b'a'; 50], 100).unwrap().is_none());
+    }
+    assert!(a.push(1, 191, 10, 15, &[b'a'; 50], 100).is_err());
+}
+#[test]
+fn stale_capability_blocks_start_but_stops_remain_available() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    e.telemetry.ingest(header(1), &heartbeat(1), 4000, None);
+    e.telemetry.ingest(header(191), &heartbeat(191), 4000, None);
+    assert!(e.payload_gate(31010, 4000).is_err());
+    for c in [31011, 31016, 31019] {
+        assert!(e.payload_gate(c, 4000).is_ok());
+    }
+}
+#[test]
+fn manual_point_sample_is_allowed_without_gps() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    assert_eq!(e.telemetry.get("gps_fix", 100), None);
+    send(&mut e, 31010, 100);
+    assert_eq!(e.records.len(), 1);
+    assert!(
+        e.intent(
+            Intent::Mode {
+                mode: 10,
+                confirmed: true
+            },
+            100
+        )
+        .is_err()
+    );
+}
+#[test]
+fn standard_ack_never_completes_correlated_start() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let id = send(&mut e, 31010, 100);
+    let ack = commands::MavMessage::COMMAND_ACK(commands::COMMAND_ACK_DATA {
+        command: 31010,
+        result: 0,
+        target_system: 254,
+        target_component: 190,
+        ..Default::default()
+    })
+    .into();
+    e.ingest(header(191), ack, 200);
+    let r = e.records.iter().find(|r| r.id == id).unwrap();
+    assert!(!r.receipt);
+    assert_eq!(r.state, RequestState::Created);
+}
+#[test]
+fn three_distinct_stops_can_overlap_waiting_sampling() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    send(&mut e, 31010, 100);
+    for c in [31011, 31016, 31019] {
+        send(&mut e, c, 101);
+    }
+    assert_eq!(e.records.len(), 4);
+    assert_eq!(e.records[1].stop_targets, vec![e.records[0].id.clone()]);
+    assert!(e.records[3].stop_targets.is_empty());
+}
+#[test]
+fn timeout_and_same_idle_are_not_completion() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    send(&mut e, 31010, 100);
+    e.records[0].sent(100, "test");
+    e.telemetry.put("USV_STAT", 0.0, 5101, 191);
+    e.tick(5101);
+    assert_eq!(e.records[0].state, RequestState::Unknown);
+    assert!(!e.records[0].retired);
+    assert!(e.safety.outputs_unknown);
+}
+#[test]
+fn late_terminal_and_new_idle_reconcile_unknown_request() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let id = send(&mut e, 31010, 100);
+    e.records[0].sent(100, "test");
+    e.tick(5101);
+    ingest_event(&mut e, &id, "terminal", "succeeded", 2, 5200);
+    assert!(!e.records[0].retired);
+    e.telemetry.put("USV_STAT", 0.0, 5201, 191);
+    e.tick(5201);
+    assert!(e.records[0].retired);
+    assert!(!e.safety.outputs_unknown);
+}
+#[test]
+fn ads_stop_does_not_release_unknown_pumps() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    send(&mut e, 31010, 100);
+    e.safety.outputs_unknown = true;
+    let id = send(&mut e, 31019, 110);
+    ingest_event(&mut e, &id, "request", "accepted", 1, 200);
+    e.telemetry.put("USV_STAT", 0.0, 201, 191);
+    e.tick(201);
+    assert!(!e.records[0].retired);
+    assert!(e.safety.outputs_unknown);
+}
+#[test]
+fn full_stop_requires_post_receipt_idle_then_releases_old_task() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    send(&mut e, 31010, 100);
+    e.safety.outputs_unknown = true;
+    let id = send(&mut e, 31011, 110);
+    e.telemetry.put("USV_STAT", 0.0, 190, 191);
+    ingest_event(&mut e, &id, "request", "accepted", 1, 200);
+    assert!(!e.records[0].retired);
+    assert!(e.safety.outputs_unknown);
+    e.telemetry.put("USV_STAT", 0.0, 201, 191);
+    e.tick(201);
+    assert!(e.records[0].retired);
+    assert!(!e.safety.outputs_unknown);
+}
+#[test]
+fn disconnect_suppresses_retries_and_restart_retains_unknown() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    send(&mut e, 31010, 100);
+    e.records[0].sent(100, "test");
+    e.lose_link(200, "test disconnect");
+    assert!(!e.records[0].needs_retry(1100, e.telemetry.generation));
+    drop(e);
+    let e = Engine::new(d.path());
+    assert_eq!(e.records[0].state, RequestState::Unknown);
+    assert!(!e.records[0].retry_allowed);
+    assert!(e.safety.outputs_unknown);
+}
+#[test]
+fn propulsion_and_payload_emergency_confirmations_are_independent() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    e.intent(Intent::EmergencyStop { confirmed: true }, 110)
+        .unwrap();
+    assert!(e.safety.emergency_latched);
+    assert!(!e.safety.propulsion_confirmed);
+    let id = e.safety.stop_request.clone().unwrap();
+    ingest_event(&mut e, &id, "request", "accepted", 1, 200);
+    assert!(e.safety.payload_confirmed);
+    assert!(!e.safety.propulsion_confirmed);
+    assert!(
+        e.intent(
+            Intent::VerifyStop {
+                onsite_confirmed: true
+            },
+            200
+        )
+        .is_err()
+    );
+}
+#[test]
+fn no_physical_action_without_operator_confirmation() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    assert!(
+        e.intent(
+            Intent::Payload {
+                command: 31010,
+                param1: 0.0,
+                param2: 0.0,
+                confirmed: false
+            },
+            100
+        )
+        .is_err()
+    );
+    assert!(
+        e.intent(
+            Intent::Arm {
+                armed: true,
+                confirmed: false
+            },
+            100
+        )
+        .is_err()
+    );
+    assert!(
+        e.intent(Intent::EmergencyStop { confirmed: false }, 100)
+            .is_err()
+    );
+    assert!(e.records.is_empty());
+}
+
+#[test]
+fn unresolved_old_task_is_loaded_beyond_recent_history_limit() {
+    let d = tempfile::tempdir().unwrap();
+    let store = IdentityStore::open(&d.path().join("i.db")).unwrap();
+    let mut records = vec![record(31010)];
+    let unresolved = records[0].id.clone();
+    for i in 1..=2001 {
+        let mut r = record(31017);
+        r.created_unix_ms = 1000 + i;
+        r.retired = true;
+        records.push(r);
+    }
+    store.save_state(&records, &serde_json::json!({})).unwrap();
+    let loaded = store.load().unwrap();
+    assert!(loaded.iter().any(|r| r.id == unresolved));
+    assert!(
+        loaded
+            .windows(2)
+            .all(|r| r[0].created_unix_ms <= r[1].created_unix_ms)
+    );
+}
+#[test]
+fn restarted_pending_stop_cannot_release_new_generation() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let stop = send(&mut e, 31011, 100);
+    drop(e);
+    let mut e = prepared(d.path());
+    e.safety.outputs_unknown = true;
+    ingest_event(&mut e, &stop, "request", "accepted", 1, 200);
+    e.telemetry.put("USV_STAT", 0.0, 201, 191);
+    e.tick(201);
+    assert!(e.safety.outputs_unknown);
+    assert_ne!(e.records[0].generation, e.telemetry.generation);
+}
+#[test]
+fn arm_requires_fresh_disarmed_telemetry_and_snapshot_agrees() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    e.telemetry.put("armed", 1.0, 100, 1);
+    assert!(!e.snapshot(100).navigation.arm);
+    assert!(
+        e.intent(
+            Intent::Arm {
+                armed: true,
+                confirmed: true
+            },
+            100
+        )
+        .is_err()
+    );
+    e.telemetry.put("armed", 0.0, 100, 1);
+    assert!(e.snapshot(100).navigation.arm);
+    e.telemetry.heartbeat_ms = Some(4000);
+    assert!(!e.snapshot(4000).navigation.arm);
+}
+#[test]
+fn mission_stop_creates_hold_and_independent_payload_stop() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let result = e
+        .intent(Intent::StopMission { confirmed: true }, 100)
+        .unwrap();
+    assert!(result["navigation"]["Ok"].is_string());
+    assert!(result["payload"]["Ok"].is_string());
+    assert_eq!(e.flight.last().unwrap().command, 176);
+    assert_eq!(e.records.last().unwrap().command, 31011);
+}
+#[test]
+fn emergency_can_accept_a_new_full_stop_after_reconnect() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    e.intent(Intent::EmergencyStop { confirmed: true }, 110)
+        .unwrap();
+    e.lose_link(200, "test");
+    e.ingest(header(1), heartbeat(1), 300);
+    e.ingest(header(191), heartbeat(191), 300);
+    let id = send(&mut e, 31011, 310);
+    assert_eq!(e.safety.stop_request.as_deref(), Some(id.as_str()));
+    ingest_event(&mut e, &id, "request", "accepted", 1, 400);
+    assert!(e.safety.payload_confirmed);
+    assert!(!e.safety.propulsion_confirmed);
+}
