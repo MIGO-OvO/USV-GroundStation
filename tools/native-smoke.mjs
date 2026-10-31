@@ -13,16 +13,23 @@ await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
 const app = spawn(binary, [], { windowsHide: true, env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
 let processError;
+let processExit;
+let processOutput = '';
 app.on('error', e => { processError = e; });
+app.on('exit', (code, signal) => { processExit = { code, signal }; });
+for (const stream of [app.stdout, app.stderr]) {
+  stream.on('data', data => { processOutput = (processOutput + data.toString()).slice(-16384); });
+}
 let browser;
 try {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline && !browser) {
     if (processError) throw processError;
+    if (processExit) throw new Error(`Native app exited: ${JSON.stringify(processExit)}\n${processOutput}`);
     try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); }
     catch { await new Promise(r => setTimeout(r, 300)); }
   }
-  assert(browser, 'WebView2 CDP endpoint did not open');
+  assert(browser, `WebView2 CDP endpoint did not open\n${processOutput}`);
   let page;
   while (Date.now() < deadline && !page) {
     page = browser.contexts().flatMap(c => c.pages()).find(p => !p.url().startsWith('devtools:'));
