@@ -359,9 +359,7 @@ export default function Planner({
               停止任务与采样
             </button>
           </div>
-          <p className="caption">
-            定点采样使用 42702 / param1=1；任务项进度与采样结果分别确认。
-          </p>
+          <p className="caption">到达采样点后等待采样完成，再继续航行。</p>
         </div>
       </div>
     </section>

@@ -179,6 +179,51 @@ function Cockpit({
               value={number(field(s, "mission_current"), 0)}
             />
           </div>
+          <section className="vessel-status" aria-label="定位与电源">
+            <dl className="telemetry-list vessel-telemetry">
+              <div>
+                <dt>
+                  <Satellite size={15} />
+                  GPS
+                </dt>
+                <dd>
+                  {fix === null
+                    ? "未更新"
+                    : fix >= 6
+                      ? "RTK 固定"
+                      : fix === 5
+                        ? "RTK 浮点"
+                        : fix >= 3
+                          ? "已定位"
+                          : "未定位"}
+                  <small>{number(field(s, "satellites"), 0)} 颗卫星</small>
+                </dd>
+              </div>
+              <div>
+                <dt>HDOP</dt>
+                <dd>
+                  <Reading s={s} name="hdop" digits={2} />
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <Battery size={15} />
+                  电池
+                </dt>
+                <dd>
+                  <Reading s={s} name="battery_percent" digits={0} unit=" %" />
+                  <small>
+                    <Reading
+                      s={s}
+                      name="battery_voltage"
+                      digits={2}
+                      unit=" V"
+                    />
+                  </small>
+                </dd>
+              </div>
+            </dl>
+          </section>
         </div>
         <aside className="operations-panel">
           <section>
@@ -265,52 +310,7 @@ function Cockpit({
               </p>
             )}
           </section>
-          <section>
-            <h2>定位与电源</h2>
-            <dl className="telemetry-list">
-              <div>
-                <dt>
-                  <Satellite size={15} />
-                  GPS
-                </dt>
-                <dd>
-                  {fix === null
-                    ? "未更新"
-                    : fix >= 6
-                      ? "RTK 固定"
-                      : fix === 5
-                        ? "RTK 浮点"
-                        : fix >= 3
-                          ? "已定位"
-                          : "未定位"}
-                  <small>{number(field(s, "satellites"), 0)} 颗卫星</small>
-                </dd>
-              </div>
-              <div>
-                <dt>HDOP</dt>
-                <dd>
-                  <Reading s={s} name="hdop" digits={2} />
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <Battery size={15} />
-                  电池
-                </dt>
-                <dd>
-                  <Reading s={s} name="battery_percent" digits={0} unit=" %" />
-                  <small>
-                    <Reading
-                      s={s}
-                      name="battery_voltage"
-                      digits={2}
-                      unit=" V"
-                    />
-                  </small>
-                </dd>
-              </div>
-            </dl>
-          </section>
+
           <section>
             <div className="section-heading">
               <h2>采样载荷</h2>
@@ -347,10 +347,12 @@ function Cockpit({
             </dl>
             <PayloadControls s={s} send={send} compact />
           </section>
-          <section className="panel-request">
-            <h2>命令反馈</h2>
-            <RequestSummary record={s.requests.at(-1)} onOpen={onRequest} />
-          </section>
+          {s.requests.length > 0 && (
+            <section className="panel-request">
+              <h2>命令反馈</h2>
+              <RequestSummary record={s.requests.at(-1)} onOpen={onRequest} />
+            </section>
+          )}
         </aside>
       </div>
     </section>
@@ -426,7 +428,7 @@ export default function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand">
-          <Compass size={28} strokeWidth={1.6} />
+          <Compass size={24} strokeWidth={1.6} />
           <strong>
             USV<span>GroundStation</span>
           </strong>
@@ -474,7 +476,7 @@ export default function App() {
             className={workspace === key ? "active" : ""}
             onClick={() => setWorkspace(key)}
           >
-            <Icon size={22} strokeWidth={1.7} />
+            <Icon size={19} strokeWidth={1.6} />
             <span>{label}</span>
           </button>
         ))}
@@ -495,6 +497,9 @@ export default function App() {
             ) : (
               <Sun size={20} />
             )}
+            <span>
+              {preferences.theme === "light" ? "深色主题" : "浅色主题"}
+            </span>
           </button>
           <button
             className={workspace === "settings" ? "active" : ""}
@@ -626,7 +631,7 @@ export default function App() {
             </>
           )}
           <span className="footer-divider" />
-          {native ? "Rust 控制核心" : "界面预览，无设备控制"}
+          {native ? "本地工作区" : "界面预览，无设备控制"}
         </span>
         <span>
           WGS 84

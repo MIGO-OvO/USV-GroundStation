@@ -48,7 +48,7 @@ function style(p: Preferences): StyleSpecification {
         id: "background",
         type: "background",
         paint: {
-          "background-color": p.theme === "dark" ? "#203a3b" : "#e5ece7",
+          "background-color": p.theme === "dark" ? "#202020" : "#f5f5f5",
         },
       },
       ...(native && p.mapEnabled
@@ -119,7 +119,7 @@ export default function MapView({
         type: "line",
         source: "track",
         paint: {
-          "line-color": "#1a8c65",
+          "line-color": preferences.theme === "dark" ? "#bdbdbd" : "#525252",
           "line-width": 3,
           "line-opacity": 0.8,
         },
@@ -129,7 +129,7 @@ export default function MapView({
         type: "line",
         source: "route",
         paint: {
-          "line-color": "#bb6a23",
+          "line-color": preferences.theme === "dark" ? "#8aafff" : "#2563eb",
           "line-width": 3,
           "line-dasharray": [2, 2],
         },
@@ -233,7 +233,7 @@ export default function MapView({
       el.className = "vessel-marker";
       el.setAttribute("aria-label", "无人船实时位置");
       el.innerHTML =
-        '<svg width="36" height="42" viewBox="0 0 36 42" aria-hidden="true"><path d="M18 3 30 34 18 29 6 34Z" fill="#146b52" stroke="#f1f6ed" stroke-width="2.5"/></svg>';
+        '<svg width="36" height="42" viewBox="0 0 36 42" aria-hidden="true"><path d="M18 3 30 34 18 29 6 34Z" fill="currentColor" stroke-width="2.5"/></svg>';
       vessel.current = new maplibregl.Marker({
         element: el,
         rotationAlignment: "map",
@@ -269,7 +269,7 @@ export default function MapView({
           <span>
             {native
               ? "在设置中填写 ROS 地址并启用地图"
-              : "设备连接与通信由 Tauri 中的 Rust 后端提供"}
+              : "请打开桌面程序连接无人船和地图服务"}
           </span>
         </div>
       )}

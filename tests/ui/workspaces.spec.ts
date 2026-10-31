@@ -102,3 +102,39 @@ test("confirmation dialog has a name, description and keyboard cancellation", as
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 });
+
+for (const viewport of [
+  { width: 1280, height: 720 },
+  { width: 1920, height: 1080 },
+]) {
+  test(`dark theme across Windows workspaces at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await page.getByRole("button", { name: "切换深色主题" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    for (const [label, file] of [
+      ["驾驶舱", "cockpit"],
+      ["航线", "planner"],
+      ["采样", "sampling"],
+      ["诊断", "diagnostics"],
+    ]) {
+      await page.getByRole("button", { name: label, exact: true }).click();
+      await page.screenshot({
+        path: `.impeccable/review/${file}-dark-${viewport.width}.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "切换浅色主题" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  });
+}

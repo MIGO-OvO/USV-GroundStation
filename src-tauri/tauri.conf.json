@@ -29,6 +29,7 @@
     "resources": {
       "../LICENSE": "LICENSE",
       "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../src/assets/fonts/OFL.txt": "licenses/Inter-OFL.txt",
       "../licenses/third-party-licenses.zip": "licenses/third-party-licenses.zip",
       "../licenses/dependency-inventory.json": "licenses/dependency-inventory.json",
       "../licenses/dependency-licenses.md": "licenses/dependency-licenses.md"

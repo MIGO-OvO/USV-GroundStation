@@ -22,7 +22,7 @@
 | ROS 数据中心 | 原 Web API | 任务列表、样本、CSV/原始 CSV/ZIP；真实 Jetson 归档待联调 |
 | 通信日志 | Rust JSONL/ZIP、诊断 UI | request/session 时间线、重组/重试/过期、ROS 诊断，时钟域独立 |
 | Windows 桌面包 | Tauri / NSIS | 真实 x64 构建和 WebView2 IPC smoke |
-| Android 平板 | Tauri ARM64 | 网络、系统保存与触屏布局；设备安装和生命周期待验收 |
+| Android 平板 | 保留 Tauri ARM64 适配 | 本轮暂停构建与发布，新界面未在 Android 验证 |
 | 刷写、完整参数树 | 原 QGC | 专用地面站首版不提供，继续使用 QGC 维护 |
 | PX4、多机型、视频、语音 | 不进入首版 | 按用户范围排除 |
 

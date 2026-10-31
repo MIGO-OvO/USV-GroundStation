@@ -27,9 +27,7 @@ export function SignalChart({
   label: string;
 }) {
   if (!data.length)
-    return (
-      <Empty title={`等待有效${label}数据`}>曲线仅绘制已收到的有效测量帧</Empty>
-    );
+    return <Empty title={`等待有效${label}数据`}>收到有效测量后显示曲线</Empty>;
   const end = data[data.length - 1].t,
     start = end - 120000;
   const visible = data.filter((p) => p.t >= start);
@@ -354,7 +352,7 @@ export default function PayloadWorkspace({
           className={`connection-indicator ${s.payload_online ? "online" : ""}`}
         >
           <span />
-          {s.payload_online ? "COMP 191 在线" : "COMP 191 离线"}
+          {s.payload_online ? "载荷在线" : "载荷离线"}
         </span>
       </header>
       <div className="sampling-scroll">

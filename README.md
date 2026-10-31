@@ -1,6 +1,6 @@
 # USV GroundStation
 
-当前 ArduPilot ArduRover 无人船的专用地面站。Rust 维护 MAVLink 连接、载荷请求、任务传输和诊断，React 显示实时快照，Tauri 2 提供 Windows/Android 容器。
+当前 ArduPilot ArduRover 无人船的专用地面站。Rust 维护 MAVLink 连接、载荷请求、任务传输和诊断，React 显示实时快照，Tauri 2 提供 Windows 桌面容器。
 
 项目独立位于 `D:\USV-GroundStation`，不依赖 QGC 源码、Qt、子模块或 `usv_ws` 构建目录。
 
@@ -12,7 +12,7 @@
 - 航点编辑、采样开关和超时、JSON 导入导出，原生 MAVLink 任务上传、下载和逐项回读。
 - ROS 相对校准角、PID 状态、有效帧曲线、历史记录与 CSV/ZIP 下载。
 - 单请求证据时间线、结构化 JSONL、ZIP 诊断包、遥测新鲜度和 Jetson 诊断。
-- ROS 地图代理及本机瓦片缓存，浅色/深色主题和桌面/平板布局。
+- ROS 地图代理及本机瓦片缓存，黑白极简界面、浅色/深色主题和响应式布局。
 
 ## 开发
 
@@ -30,11 +30,12 @@ npm run tauri -- dev
 仅运行 `npm run dev` 会打开浏览器界面预览。设备连接及 ROS 访问需在 Tauri 中运行。
 
 ```powershell
-npm run tauri -- build
+npm run tauri -- build --bundles nsis
+./tools/ensure-webview2.ps1
 node tools/native-smoke.mjs
 ```
 
-安装包输出到 `target/release/bundle/nsis/`。Android 见 [Android 构建与部署](docs/android.md)。
+安装包输出到 `target/release/bundle/nsis/`。本轮只构建和发布 Windows x64 NSIS；Android 构建已暂停，现有适配记录见 [Android 说明](docs/android.md)。
 
 ## 使用
 
@@ -56,7 +57,7 @@ node tools/native-smoke.mjs
 | [架构](docs/architecture.md) | Rust actor、IPC、存储及模块边界 |
 | [协议兼容](docs/protocol.md) | 身份、ACK、USVE1、STOP、任务及 Web API |
 | [Windows 使用与部署](docs/windows.md) | 连接、缓存、导出、安装和排错 |
-| [Android 构建与部署](docs/android.md) | 工具链、权限及生命周期边界 |
+| [Android 适配记录](docs/android.md) | 已暂停构建；保留工具链、权限及生命周期说明 |
 | [测试报告](docs/verification.md) | 可重复命令与实际验证结果 |
 | [QGC 功能对照](docs/qgc-comparison.md) | 首版实现、复用与范围 |
 | [实机验收](docs/hardware-acceptance.md) | 台架和现场场景 |

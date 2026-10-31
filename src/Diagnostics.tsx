@@ -234,7 +234,7 @@ export default function Diagnostics({
               <Timeline r={record} diagnostics={s.diagnostics} />
             ) : (
               <Empty title="尚无载荷命令">
-                发送命令后，这里会逐阶段显示实际接收到的证据。
+                发送命令后可查看发送、接单和执行记录。
               </Empty>
             )}
             <section className="packet-section">

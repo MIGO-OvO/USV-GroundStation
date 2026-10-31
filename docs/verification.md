@@ -11,12 +11,12 @@
 | `cargo fmt --all -- --check` | 通过 | Rust工作区 |
 | `npm run build` | 通过 | TypeScript检查及Vite生产构建 |
 | `npm test` | 7通过，0失败 | UI状态、按钮准入、无GPS点采样、操作确认、ACK证据、新鲜度、草稿校验 |
-| `npm run test:ui` | 5通过，0失败 | 1280×720、1920×1080、1024×768、600×900，另测确认框名称/说明/Escape |
-| Windows Release / NSIS | 最终构建通过，安装包5.36 MiB | 真实MSVC/Tauri构建，随包包含许可证 |
+| `npm run test:ui` | 7通过，0失败 | 1280×720、1920×1080、1024×768、600×900；确认框名称/说明/Escape；Windows浅深主题、切换及持久化 |
+| Windows Release / NSIS | 极简界面构建通过，安装包约5.70 MiB | 真实MSVC/Tauri构建，随包包含依赖和Inter许可证 |
 | `node tools/native-smoke.mjs` | 最终包重跑通过 | 真实Windows WebView2和Rust IPC，不连接设备 |
-| Android ARM64 | Release APK构建及签名校验通过 | API26最低、target/compile SDK36、仅arm64-v8a；未安装到设备 |
+| Android | 本轮不构建、不发布 | 已暂停CI；旧界面APK记录保留在android.md |
 
-最终平台产物、签名与校验值随 Release 提供。Android项目专用RSA3072证书SHA256为 `8dad5649db176f60a95712013c0ed3ff44be395f2d9ca36f1f8d29277f30ce66`，已由apksigner验证。APK包含INTERNET权限、原创应用包名及随附许可证。Vite对MapLibre所在JS块提示超过500 kB，构建未失败；此为首版已知体积提示。
+Windows产物、构建来源与校验值随Release提供。安装包未做Windows代码签名。Vite对MapLibre所在JS块提示超过500 kB，构建未失败；此为首版已知体积提示。
 
 ## 协议与故障场景
 
@@ -36,11 +36,15 @@
 
 Playwright使用实际React/MapLibre渲染和无设备空状态。确认框另有测试夹具，引用同一产品组件。浏览器预览的物理按钮禁用，没有示例遥测冒充设备状态。
 
-独立UI复核的首轮三项修正（窄屏主题入口、48px触屏目标、dialog可访问名称与说明）全部评为resolved，verdict为ship；此结论仅覆盖这三项。DESIGN.md和.impeccable/design.json从实际源码token提取。
+本轮按用户提供的Minimalism图片替换原绿色界面，检查29张工作区截图及空筛选框截图。使用fresh独立agent执行impeccable复核契约：字体、白灰/炭灰层级、地图与导航、真实空状态和确认流程符合方向契约；发现一处浅色placeholder对比度不足。将opacity改为1后，浏览器计算样式为#666666，白底对比度5.74:1。重新截图后，同reviewer判该项resolved，disposition为ship；该最终verdict仅覆盖这项修复。
+
+DESIGN.md和.impeccable/design.json从最终源码token提取。detector运行一次；Inter命中符合用户参考，其余旧设计系统差异由此次获准的文档替换同步，没有新增忽略规则。
 
 ## 平台检查与环境修复
 
-Windows首次Release遇到1455提交内存不足，限制Cargo jobs=2并重新构建后通过。Android首次生成模板引用SDK37（实际SDK仓库不可用）和AGP9.3.1；本项目通过可重复脚本固定SDK36、根工程及buildSrc的AGP8.13.2、Gradle8.14.3。没有删除失败测试或放宽协议判定。
+Windows首次Release遇到1455提交内存不足，限制Cargo jobs=2并重新构建后通过。首次CI在NSIS成功后未能打开WebView2 CDP端点；现增加Runtime检查与微软官方引导安装器签名校验，并记录原生进程的退出和输出。本机Runtime检查与原生IPC smoke通过，CI结果以Release构建来源记录为准。
+
+此前Android构建与SDK版本调整属于旧界面记录，见[android.md](android.md)。本轮未执行Android构建。没有删除失败测试或放宽协议判定。
 
 ## 重跑
 
@@ -53,10 +57,11 @@ npm test
 npm exec playwright -- install chromium
 npm run test:ui
 npm run tauri -- build --bundles nsis
+./tools/ensure-webview2.ps1
 node tools/native-smoke.mjs
 ```
 
-Android工具链与签名命令见 [android.md](android.md)。CI仅建立Windows安装包和Android APK job，两项均在Windows runner运行。
+CI只保留Windows runner，执行核心、React、界面、许可证、NSIS及原生WebView2检查。Android工具链记录见[android.md](android.md)，当前CI不执行这些命令。
 
 ## 未验证范围
 

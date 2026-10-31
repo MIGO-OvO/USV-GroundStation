@@ -23,10 +23,10 @@ QGC、ROS、ArduPilot 与检测板源码用于核查现有协议和行为。项�
 
 MPL-2.0 依赖（如 serialport、cssparser、selectors）的原始源码可从清单中对应的 crates.io 版本下载。本项目未修改这些依赖。许可证要求针对其覆盖文件，不改变本项目原创文件的许可。MAVLink 消息 XML 定义按上游自带条款使用，消息布局生成代码不包含 QGC 实现。
 
-Android 使用 Tauri Android 层、AndroidX、Material、Kotlin、Jackson 等原生依赖。各自声明见发布的 Android Gradle runtime 依赖报告及上游 POM：AndroidX、Material、Kotlin/Kotlinx、Jackson、Tauri 使用 Apache-2.0（Tauri另提供MIT）；其他传递依赖按其上游许可。Google SDK、NDK、构建工具和 WebView 属各自提供商，不随源码分发工具链。
+保留的 Android 适配使用 Tauri Android 层、AndroidX、Material、Kotlin、Jackson 等原生依赖，本轮不分发 Android 产物。AndroidX、Material、Kotlin/Kotlinx、Jackson、Tauri 使用 Apache-2.0（Tauri另提供MIT）；其他传递依赖按其上游许可。恢复 Android 发布时需随包提供对应 Gradle runtime 依赖报告及许可证。Google SDK、NDK、构建工具和 WebView 属各自提供商，不随源码分发工具链。
 
 ## 地图与字体
 
 底图由现有 ROS 地图服务提供。应用不内置 Google、卫星、OSM 等地图影像。用户应遵守实际提供商使用、下载、离线缓存与署名条款，应用保留 MapLibre attribution 区域。已有本机瓦片不授予再分发权。
 
-界面使用系统 Segoe UI、Microsoft YaHei UI、Noto Sans CJK SC 等字体栈，不附带字体文件。原创应用图标源文件位于 assets/app-icon.svg。
+界面附带 Inter Variable，采用 SIL Open Font License 1.1，版权属于 The Inter Project Authors。字体及许可证来自 rsms/inter 提交 `353b61b9f4430d5f420d56605a6e7993e0941470` 的 `docs/font-files/InterVariable.woff2` 和 `LICENSE.txt`；安装包保留 `licenses/Inter-OFL.txt`。中文使用系统 Microsoft YaHei UI，回退到 Segoe UI。原创应用图标源文件位于 assets/app-icon.svg。

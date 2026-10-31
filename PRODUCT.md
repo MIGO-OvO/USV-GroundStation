@@ -6,7 +6,7 @@
 
 web
 
-Tauri 2 Windows 桌面应用，随后适配 Android 平板。React 在 WebView 内运行。
+Tauri 2 Windows 桌面应用。React 在 WebView 内运行。本次只构建和发布 Windows NSIS 安装包。
 
 ## Stack
 
@@ -22,4 +22,8 @@ Tauri 2 Windows 桌面应用，随后适配 Android 平板。React 在 WebView �
 
 ## Workspaces
 
-航行驾驶舱、航线规划、采样与数据、通信诊断、连接与设置。深浅主题，Windows 常见分辨率和平板可操作。
+航行驾驶舱、航线规划、采样与数据、通信诊断、连接与设置。浅色与深色两种主题，重点支持 1280×720、1920×1080 Windows 窗口。
+
+## Visual commitment
+
+按用户提供的 Minimalism 参考图重设计：黑白灰、Inter 字体、留白、细分隔线、横向图标与文字导航。实心黑白按钮表示主操作，蓝色表示地图交互和键盘焦点，红色表示停止或故障。功能、真实状态和操作确认完整保留。

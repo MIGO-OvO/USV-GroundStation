@@ -60,7 +60,8 @@ npm test
 npm exec playwright -- install chromium
 npm run test:ui
 npm run tauri -- build --bundles nsis
+./tools/ensure-webview2.ps1
 node tools/native-smoke.mjs
 ```
 
-构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，不建立设备连接。它是开发检查工具，默认程序不会打开 CDP 端口。
+构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`ensure-webview2.ps1` 检查 Runtime，缺失时下载并校验微软签名的官方安装器。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，不建立设备连接。它是开发检查工具，默认程序不会打开 CDP 端口。
