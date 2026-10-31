@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 
 # WebView2 150+ ignores environment overrides in elevated hosts.
 # Use the supported machine policy only on the disposable Actions runner.
+# https://github.com/MicrosoftEdge/WebView2Feedback/issues/5640#issuecomment-4923662109
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Run this CI harness in GitHub Actions; use native-smoke.mjs locally.' }
 $elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 Write-Output "Native smoke runner elevated: $elevated"
@@ -27,5 +28,6 @@ try {
     if ($null -eq $previous) { Remove-ItemProperty -LiteralPath $key -Name $name }
     else { Set-ItemProperty -LiteralPath $key -Name $name -Value $previous }
     Remove-Item Env:USV_NATIVE_CDP_PORT
+    Write-Output 'Restored app-scoped WebView2 CI policy.'
 }
 exit $smokeExit

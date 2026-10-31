@@ -42,7 +42,11 @@ DESIGN.md和.impeccable/design.json从最终源码token提取。detector运行�
 
 ## 平台检查与环境修复
 
-Windows首次Release遇到1455提交内存不足，限制Cargo jobs=2并重新构建后通过。首次CI在NSIS成功后未能打开WebView2 CDP端点；现增加Runtime检查与微软官方引导安装器签名校验，并记录原生进程的退出和输出。本机Runtime检查与原生IPC smoke通过，CI结果以Release构建来源记录为准。
+Windows首次Release遇到1455提交内存不足，限制Cargo jobs=2并重新构建后通过。Runtime检查会在缺失时下载微软官方引导安装器并校验签名。
+
+CI原生检查最初报CDP连接拒绝：应用和WebView2进程存活，调试参数已传给子进程，但没有进入浏览器命令行。同一CI二进制在本机使用Node.js 24.22.1和WebView2 155.0.4283.62通过。CI的管理员权限触发了WebView2 150起对环境变量浏览器参数的限制，见[上游说明](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5640#issuecomment-4923662109)。CI脚本仅为本程序临时设置HKLM AdditionalBrowserArguments，执行后恢复原值。使用原二进制的[定向检查](https://github.com/MIGO-OvO/USV-GroundStation/actions/runs/41245602625)通过。发布产物的完整Windows CI结果见BUILD_PROVENANCE.json。
+
+原生检查保留30秒期限、真实WebView2、Rust IPC断言和设备未连接检查。应用默认不开启调试端口，CI设置不进入安装包。
 
 此前Android构建与SDK版本调整属于旧界面记录，见[android.md](android.md)。本轮未执行Android构建。没有删除失败测试或放宽协议判定。
 

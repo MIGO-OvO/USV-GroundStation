@@ -65,3 +65,5 @@ node tools/native-smoke.mjs
 ```
 
 构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`ensure-webview2.ps1` 检查 Runtime，缺失时下载并校验微软签名的官方安装器。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，不建立设备连接。它是开发检查工具，默认程序不会打开 CDP 端口。
+
+本机检查使用普通权限终端。GitHub Actions 的管理员 runner 由 `ci-native-smoke.ps1` 临时设置本程序的 HKLM WebView2 调试参数并在结束时恢复；WebView2 150 起会忽略管理员进程环境变量中的浏览器参数。该脚本仅用于 Actions。
