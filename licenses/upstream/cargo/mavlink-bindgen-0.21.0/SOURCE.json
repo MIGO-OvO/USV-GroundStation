@@ -1,0 +1,8 @@
+{
+  "repository": "mavlink/rust-mavlink",
+  "commit": "19795337a9c9634b2bebd4100cf5c10f56d340f5",
+  "files": [
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ]
+}

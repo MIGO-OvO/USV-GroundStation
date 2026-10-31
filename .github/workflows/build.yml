@@ -1,0 +1,103 @@
+name: Windows and Android
+on:
+  push:
+    branches: [main, 'codex/**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows x64 tests and NSIS
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked -p usv-core --all-targets -- -D warnings
+      - run: cargo test --locked -p usv-core
+      - run: npm test
+      - run: npm exec playwright -- install chromium
+      - run: npm run test:ui
+      - name: Dependency notices
+        run: python tools/third-party.py
+      - run: npm run tauri -- build --bundles nsis
+      - name: Native WebView2 IPC smoke
+        run: node tools/native-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: |
+            target/release/bundle/nsis/*.exe
+            licenses/*
+            .impeccable/review/windows-native.png
+            playwright-report/
+
+  android:
+    name: Android ARM64 APK
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android-arm64
+      - uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: android-gradle-${{ hashFiles('tools/prepare-android.ps1', 'package-lock.json') }}
+      - run: npm ci
+      - name: SDK and generated project
+        shell: pwsh
+        run: |
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018'
+          if ($LASTEXITCODE -ne 0) { throw 'SDK install failed' }
+          "NDK_HOME=$env:ANDROID_HOME\ndk\27.2.12479018" >> $env:GITHUB_ENV
+          npm exec tauri -- android init --ci --skip-targets-install
+          if ($LASTEXITCODE -ne 0) { throw 'Android init failed' }
+          ./tools/prepare-android.ps1
+      - run: npm exec tauri -- android build --target aarch64 --apk --ci
+      - name: Native dependency report
+        shell: pwsh
+        working-directory: src-tauri/gen/android
+        run: ./gradlew.bat :app:dependencies --configuration universalReleaseRuntimeClasspath > ../../../android-runtime-dependencies.txt
+      - name: Sign if release key is available
+        shell: pwsh
+        env:
+          USV_ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          USV_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if ($env:USV_ANDROID_KEYSTORE_BASE64) {
+            $keyPath = Join-Path $env:RUNNER_TEMP 'usv-release.jks'
+            [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:USV_ANDROID_KEYSTORE_BASE64))
+            try { ./tools/sign-android.ps1 -Keystore $keyPath } finally { Remove-Item -LiteralPath $keyPath }
+          } else { Write-Output 'No signing secret: unsigned APK is a build artifact only.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64
+          path: |
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            .reference/release/*.apk
+            android-runtime-dependencies.txt

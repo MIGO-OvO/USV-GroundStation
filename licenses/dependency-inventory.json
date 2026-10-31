@@ -44,7 +44,10 @@
       "license": "BSD-3-Clause",
       "source": "https://crates.io/crates/alloc-stdlib/0.3.0",
       "upstream": "https://github.com/dropbox/rust-alloc-no-stdlib",
-      "license_files": []
+      "license_files": [
+        "cargo/alloc-stdlib-0.3.0/LICENSE",
+        "cargo/alloc-stdlib-0.3.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -233,7 +236,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/block2/0.6.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/block2-0.6.2/LICENSE.md",
+        "cargo/block2-0.6.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -840,7 +846,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/dispatch2/0.3.1",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/dispatch2-0.3.1/LICENSE.md",
+        "cargo/dispatch2-0.3.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -861,7 +870,11 @@
       "license": "MIT",
       "source": "https://crates.io/crates/dlopen2/0.8.2",
       "upstream": "https://github.com/OpenByteDev/dlopen2",
-      "license_files": []
+      "license_files": [
+        "cargo/dlopen2-0.8.2/README-license.txt",
+        "cargo/dlopen2-0.8.2/LICENSE",
+        "cargo/dlopen2-0.8.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -870,7 +883,11 @@
       "license": "MIT",
       "source": "https://crates.io/crates/dlopen2_derive/0.4.3",
       "upstream": "https://github.com/OpenByteDev/dlopen2",
-      "license_files": []
+      "license_files": [
+        "cargo/dlopen2_derive-0.4.3/README-license.txt",
+        "cargo/dlopen2_derive-0.4.3/LICENSE",
+        "cargo/dlopen2_derive-0.4.3/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2014,7 +2031,11 @@
       "license": "MIT OR Apache-2.0",
       "source": "https://crates.io/crates/jni-sys-macros/0.4.1",
       "upstream": "https://github.com/jni-rs/jni-sys",
-      "license_files": []
+      "license_files": [
+        "cargo/jni-sys-macros-0.4.1/LICENSE-APACHE",
+        "cargo/jni-sys-macros-0.4.1/LICENSE-MIT",
+        "cargo/jni-sys-macros-0.4.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2236,7 +2257,12 @@
       "license": "MIT/Apache-2.0",
       "source": "https://crates.io/crates/mavlink/0.21.0",
       "upstream": "https://github.com/mavlink/rust-mavlink",
-      "license_files": []
+      "license_files": [
+        "cargo/mavlink-0.21.0/README-license.txt",
+        "cargo/mavlink-0.21.0/LICENSE-APACHE",
+        "cargo/mavlink-0.21.0/LICENSE-MIT",
+        "cargo/mavlink-0.21.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2245,7 +2271,11 @@
       "license": "MIT/Apache-2.0",
       "source": "https://crates.io/crates/mavlink-bindgen/0.21.0",
       "upstream": "https://github.com/mavlink/rust-mavlink",
-      "license_files": []
+      "license_files": [
+        "cargo/mavlink-bindgen-0.21.0/LICENSE-APACHE",
+        "cargo/mavlink-bindgen-0.21.0/LICENSE-MIT",
+        "cargo/mavlink-bindgen-0.21.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2254,7 +2284,12 @@
       "license": "MIT/Apache-2.0",
       "source": "https://crates.io/crates/mavlink-core/0.21.0",
       "upstream": "https://github.com/mavlink/rust-mavlink",
-      "license_files": []
+      "license_files": [
+        "cargo/mavlink-core-0.21.0/README-license.txt",
+        "cargo/mavlink-core-0.21.0/LICENSE-APACHE",
+        "cargo/mavlink-core-0.21.0/LICENSE-MIT",
+        "cargo/mavlink-core-0.21.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2350,7 +2385,11 @@
       "license": "MIT OR Apache-2.0",
       "source": "https://crates.io/crates/ndk/0.9.0",
       "upstream": "https://github.com/rust-mobile/ndk",
-      "license_files": []
+      "license_files": [
+        "cargo/ndk-0.9.0/LICENSE-APACHE",
+        "cargo/ndk-0.9.0/LICENSE-MIT",
+        "cargo/ndk-0.9.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2359,7 +2398,11 @@
       "license": "MIT OR Apache-2.0",
       "source": "https://crates.io/crates/ndk-context/0.1.1",
       "upstream": "https://github.com/rust-windowing/android-ndk-rs",
-      "license_files": []
+      "license_files": [
+        "cargo/ndk-context-0.1.1/LICENSE-APACHE",
+        "cargo/ndk-context-0.1.1/LICENSE-MIT",
+        "cargo/ndk-context-0.1.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2368,7 +2411,11 @@
       "license": "MIT OR Apache-2.0",
       "source": "https://crates.io/crates/ndk-sys/0.6.0+11769913",
       "upstream": "https://github.com/rust-mobile/ndk",
-      "license_files": []
+      "license_files": [
+        "cargo/ndk-sys-0.6.0+11769913/LICENSE-APACHE",
+        "cargo/ndk-sys-0.6.0+11769913/LICENSE-MIT",
+        "cargo/ndk-sys-0.6.0+11769913/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2473,7 +2520,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/objc2/0.6.5",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-0.6.5/LICENSE.md",
+        "cargo/objc2-0.6.5/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2482,7 +2532,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-app-kit/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-app-kit-0.3.2/LICENSE.md",
+        "cargo/objc2-app-kit-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2491,7 +2544,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-cloud-kit/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-cloud-kit-0.3.2/LICENSE.md",
+        "cargo/objc2-cloud-kit-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2500,7 +2556,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-data/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-data-0.3.2/LICENSE.md",
+        "cargo/objc2-core-data-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2509,7 +2568,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-foundation/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-foundation-0.3.2/LICENSE.md",
+        "cargo/objc2-core-foundation-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2518,7 +2580,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-graphics/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-graphics-0.3.2/LICENSE.md",
+        "cargo/objc2-core-graphics-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2527,7 +2592,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-image/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-image-0.3.2/LICENSE.md",
+        "cargo/objc2-core-image-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2536,7 +2604,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-location/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-location-0.3.2/LICENSE.md",
+        "cargo/objc2-core-location-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2545,7 +2616,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-core-text/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-core-text-0.3.2/LICENSE.md",
+        "cargo/objc2-core-text-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2554,7 +2628,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/objc2-encode/4.1.0",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-encode-4.1.0/LICENSE.md",
+        "cargo/objc2-encode-4.1.0/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2563,7 +2640,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-exception-helper/0.1.1",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-exception-helper-0.1.1/LICENSE.md",
+        "cargo/objc2-exception-helper-0.1.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2572,7 +2652,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/objc2-foundation/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-foundation-0.3.2/LICENSE.md",
+        "cargo/objc2-foundation-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2581,7 +2664,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-io-surface/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-io-surface-0.3.2/LICENSE.md",
+        "cargo/objc2-io-surface-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2590,7 +2676,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-quartz-core/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-quartz-core-0.3.2/LICENSE.md",
+        "cargo/objc2-quartz-core-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2599,7 +2688,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-ui-kit/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-ui-kit-0.3.2/LICENSE.md",
+        "cargo/objc2-ui-kit-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2608,7 +2700,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-user-notifications/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-user-notifications-0.3.2/LICENSE.md",
+        "cargo/objc2-user-notifications-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -2617,7 +2712,10 @@
       "license": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://crates.io/crates/objc2-web-kit/0.3.2",
       "upstream": "https://github.com/madsmtm/objc2",
-      "license_files": []
+      "license_files": [
+        "cargo/objc2-web-kit-0.3.2/LICENSE.md",
+        "cargo/objc2-web-kit-0.3.2/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -3010,7 +3108,9 @@
       "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
       "source": "https://crates.io/crates/r-efi/5.3.0",
       "upstream": "https://github.com/r-efi/r-efi",
-      "license_files": []
+      "license_files": [
+        "cargo/r-efi-5.3.0/README-license.txt"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -3019,7 +3119,9 @@
       "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
       "source": "https://crates.io/crates/r-efi/6.0.0",
       "upstream": "https://github.com/r-efi/r-efi",
-      "license_files": []
+      "license_files": [
+        "cargo/r-efi-6.0.0/README-license.txt"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -4769,7 +4871,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/webview2-com/0.39.1",
       "upstream": "https://github.com/wravery/webview2-rs",
-      "license_files": []
+      "license_files": [
+        "cargo/webview2-com-0.39.1/LICENSE",
+        "cargo/webview2-com-0.39.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -4778,7 +4883,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/webview2-com-macros/0.8.1",
       "upstream": "https://github.com/wravery/webview2-rs",
-      "license_files": []
+      "license_files": [
+        "cargo/webview2-com-macros-0.8.1/LICENSE",
+        "cargo/webview2-com-macros-0.8.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -4787,7 +4895,10 @@
       "license": "MIT",
       "source": "https://crates.io/crates/webview2-com-sys/0.39.1",
       "upstream": "https://github.com/wravery/webview2-rs",
-      "license_files": []
+      "license_files": [
+        "cargo/webview2-com-sys-0.39.1/LICENSE",
+        "cargo/webview2-com-sys-0.39.1/SOURCE.json"
+      ]
     },
     {
       "ecosystem": "cargo",
@@ -7512,7 +7623,9 @@
       "license": "MIT",
       "source": "https://www.npmjs.com/package/murmurhash-js/v/1.0.0",
       "installed": true,
-      "license_files": []
+      "license_files": [
+        "npm/murmurhash-js-1.0.0/README-license.txt"
+      ]
     },
     {
       "ecosystem": "npm",

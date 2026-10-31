@@ -4,6 +4,7 @@ Run after npm ci and cargo fetch. No project source is copied.
 """
 import argparse
 import json
+import re
 import subprocess
 import zipfile
 from pathlib import Path
@@ -28,6 +29,23 @@ def collect(folder, package):
             name = f"{package}/{path.name}"
             license_files[name] = path.read_bytes()
             found.append(name)
+    if not found:
+        for path in sorted(folder.glob("*[Rr][Ee][Aa][Dd][Mm][Ee]*")):
+            if path.is_file():
+                content = path.read_text(encoding="utf-8", errors="replace")
+                section = re.search(r"(?im)^#{1,3}\s+licen[sc]e[^\n]*\n", content)
+                if section:
+                    name = f"{package}/README-license.txt"
+                    license_files[name] = content[section.start():].encode("utf-8")
+                    found.append(name)
+                    break
+    extra = ROOT / "licenses" / "upstream" / package
+    if extra.is_dir():
+        for path in sorted(extra.iterdir()):
+            if path.is_file():
+                name = f"{package}/{path.name}"
+                license_files[name] = path.read_bytes()
+                found.append(name)
     return found
 
 
@@ -52,7 +70,7 @@ for location, p in sorted(lock["packages"].items()):
                       "installed": folder.is_dir(),
                       "license_files": collect(folder, f"npm/{name}-{p['version']}") if folder.is_dir() else []})
 
-# The Cargo registry embeds MAVLink message definitions alongside their license.
+# Include any licensing notices bundled with the MAVLink message definitions.
 for p in metadata["packages"]:
     if p["name"] in ("mavlink", "mavlink-bindgen"):
         folder = Path(p["manifest_path"]).parent

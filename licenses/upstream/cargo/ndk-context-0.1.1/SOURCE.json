@@ -1,0 +1,8 @@
+{
+  "repository": "rust-windowing/android-ndk-rs",
+  "commit": "10f2ba388fca20f7349996ebae26ccda7a6fda5c",
+  "files": [
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ]
+}

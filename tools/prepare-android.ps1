@@ -25,5 +25,6 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot 'src-tauri/android/ExportPlugin.k
 $gradleProperties = Join-Path $androidProject 'gradle.properties'
 $text = (Get-Content -LiteralPath $gradleProperties -Raw) -replace 'org.gradle.jvmargs=.*', 'org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8'
 if ($text -notmatch 'org.gradle.workers.max=') { $text += "`norg.gradle.workers.max=2`nkotlin.compiler.execution.strategy=in-process`n" }
+if ($text -notmatch 'android.useAndroidX=') { $text += "`nandroid.useAndroidX=true`n" }
 Set-Content -LiteralPath $gradleProperties -Value $text -Encoding utf8
 Write-Output 'Android: SDK 36, AGP 8.13.2, Gradle 8.14.3; native export installed.'
