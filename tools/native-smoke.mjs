@@ -11,7 +11,11 @@ await new Promise(r => reservation.listen(0, '127.0.0.1', r));
 const port = reservation.address().port;
 await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
-const app = spawn(binary, [], { windowsHide: true, env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
+const appEnv = { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` };
+const envProbe = spawnSync(process.execPath, ['-e', 'console.log(JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([k]) => /^WEBVIEW2/i.test(k)))))'],
+  { windowsHide: true, env: appEnv, encoding: 'utf8', timeout: 5000 });
+console.log('[native-smoke] Child WebView2 environment:', envProbe.stdout, envProbe.stderr);
+const app = spawn(binary, [], { windowsHide: true, env: appEnv, stdio: 'pipe' });
 let processError;
 let processExit;
 let processOutput = '';
