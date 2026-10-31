@@ -6,6 +6,10 @@
 /test-results/
 /playwright-report/
 /src-tauri/gen/
+/src-tauri/icons/ios/
+/src-tauri/icons/icon.icns
+/.impeccable/review/
+*.tsbuildinfo
 *.log
 *.db
 *.db-shm

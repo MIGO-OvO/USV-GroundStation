@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "USV GroundStation",
+  "version": "0.1.0",
+  "identifier": "com.migo.usvgroundstation",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "USV GroundStation",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../licenses/third-party-licenses.zip": "licenses/third-party-licenses.zip",
+      "../licenses/dependency-inventory.json": "licenses/dependency-inventory.json",
+      "../licenses/dependency-licenses.md": "licenses/dependency-licenses.md"
+    },
+    "targets": ["nsis"],
+    "category": "Utility",
+    "shortDescription": "无人船航行、采样与通信诊断",
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false
+      }
+    },
+    "android": { "minSdkVersion": 26 }
+  }
+}

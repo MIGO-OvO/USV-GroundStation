@@ -1,0 +1,48 @@
+import { chromium } from '@playwright/test';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import assert from 'node:assert/strict';
+
+// Opens the actual bundled WebView2 application. Never connects to a device.
+const reservation = createServer();
+await new Promise(r => reservation.listen(0, '127.0.0.1', r));
+const port = reservation.address().port;
+await new Promise(r => reservation.close(r));
+const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
+const app = spawn(binary, [], { windowsHide: true, env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
+let processError;
+app.on('error', e => { processError = e; });
+let browser;
+try {
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline && !browser) {
+    if (processError) throw processError;
+    try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); }
+    catch { await new Promise(r => setTimeout(r, 300)); }
+  }
+  assert(browser, 'WebView2 CDP endpoint did not open');
+  let page;
+  while (Date.now() < deadline && !page) {
+    page = browser.contexts().flatMap(c => c.pages()).find(p => !p.url().startsWith('devtools:'));
+    if (!page) await new Promise(r => setTimeout(r, 100));
+  }
+  assert(page, 'Tauri webview page missing');
+  await page.getByRole('heading', { name: '航行驾驶舱' }).waitFor();
+  const snapshot = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
+  assert.equal(snapshot.link, 'disconnected');
+  assert.equal(snapshot.telemetry.system_id, null);
+  assert.equal(snapshot.identity_error, null);
+  assert.equal(snapshot.log_error, null);
+  await mkdir('.impeccable/review', { recursive: true });
+  await page.screenshot({ path: '.impeccable/review/windows-native.png', fullPage: true });
+  await page.getByRole('button', { name: '连接与设置' }).click();
+  assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
+  await page.getByRole('button', { name: '诊断', exact: true }).click();
+  assert.equal(await page.getByRole('heading', { name: '通信诊断' }).isVisible(), true);
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, screenshot: '.impeccable/review/windows-native.png' }));
+} finally {
+  if (browser) await browser.close();
+  if (app.pid) app.kill();
+}

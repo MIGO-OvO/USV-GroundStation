@@ -1,0 +1,3 @@
+[build]
+# Keep desktop/Android builds usable on machines with a small Windows pagefile.
+jobs = 2
