@@ -38,7 +38,7 @@ jobs:
       - name: WebView2 runtime prerequisite
         run: ./tools/ensure-webview2.ps1
       - name: Native WebView2 IPC smoke
-        run: node tools/native-smoke.mjs
+        run: ./tools/ci-native-smoke.ps1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

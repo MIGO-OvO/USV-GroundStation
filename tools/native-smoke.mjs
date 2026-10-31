@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 
 // Opens the actual bundled WebView2 application. Never connects to a device.
 const reservation = createServer();
-await new Promise(r => reservation.listen(0, '127.0.0.1', r));
+await new Promise(r => reservation.listen(Number(process.env.USV_NATIVE_CDP_PORT || 0), '127.0.0.1', r));
 const port = reservation.address().port;
 await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
