@@ -42,6 +42,8 @@ jobs:
       - name: WebView2 runtime prerequisite
         run: ./tools/ensure-webview2.ps1
       - name: Native WebView2 IPC smoke
+        env:
+          USV_NATIVE_DIAGNOSTICS: '1'
         run: node tools/native-smoke.mjs .reference/native-artifact/target/release/usv-groundstation.exe
       - uses: actions/upload-artifact@v4
         if: always()

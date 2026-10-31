@@ -12,9 +12,17 @@ const port = reservation.address().port;
 await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
 const appEnv = { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` };
+if (process.env.USV_NATIVE_DIAGNOSTICS === '1') {
+  appEnv.WEBVIEW2_USER_DATA_FOLDER = resolve('.reference/native-webview-profile');
+}
 const envProbe = spawnSync(process.execPath, ['-e', 'console.log(JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([k]) => /^WEBVIEW2/i.test(k)))))'],
   { windowsHide: true, env: appEnv, encoding: 'utf8', timeout: 5000 });
 console.log('[native-smoke] Child WebView2 environment:', envProbe.stdout, envProbe.stderr);
+if (process.env.USV_NATIVE_DIAGNOSTICS === '1') {
+  const nativeProbe = spawnSync('powershell.exe', ['-NoProfile', '-Command', "[Environment]::GetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS'); [Environment]::GetEnvironmentVariable('WEBVIEW2_USER_DATA_FOLDER')"],
+    { windowsHide: true, env: appEnv, encoding: 'utf8', timeout: 10000 });
+  console.log('[native-smoke] Native environment lookup:', nativeProbe.stdout, nativeProbe.stderr);
+}
 const app = spawn(binary, [], { windowsHide: true, env: appEnv, stdio: 'pipe' });
 let processError;
 let processExit;
