@@ -1,5 +1,5 @@
 import { chromium } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -21,13 +21,25 @@ for (const stream of [app.stdout, app.stderr]) {
   stream.on('data', data => { processOutput = (processOutput + data.toString()).slice(-16384); });
 }
 let browser;
+let connectionError;
 try {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline && !browser) {
     if (processError) throw processError;
     if (processExit) throw new Error(`Native app exited: ${JSON.stringify(processExit)}\n${processOutput}`);
     try { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); }
-    catch { await new Promise(r => setTimeout(r, 300)); }
+    catch (error) { connectionError = error; await new Promise(r => setTimeout(r, 300)); }
+  }
+  if (!browser) {
+    console.error('[native-smoke] CDP connection:', connectionError?.message);
+    const endpoint = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(2000) })
+      .then(async response => ({ status: response.status, body: await response.text() }))
+      .catch(error => ({ error: error.message, cause: error.cause?.message }));
+    console.error('[native-smoke] Direct endpoint:', JSON.stringify(endpoint));
+    const processes = spawnSync('powershell.exe', ['-NoProfile', '-Command',
+      `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'msedgewebview2.exe' -or $_.ProcessId -eq ${app.pid} } | Select-Object Name, ProcessId, ParentProcessId, CommandLine | ConvertTo-Json`],
+      { windowsHide: true, encoding: 'utf8', timeout: 10000 });
+    console.error('[native-smoke] App and WebView processes:', processes.stdout, processes.stderr);
   }
   assert(browser, `WebView2 CDP endpoint did not open\n${processOutput}`);
   let page;
