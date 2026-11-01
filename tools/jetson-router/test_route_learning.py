@@ -15,6 +15,9 @@ from pathlib import Path
 HEARTBEAT = bytes.fromhex("fd0900000001bf000000000000000b03000303846a")
 PAYLOAD = bytes.fromhex("fd1100000001bffb00007b0000000000803f5553565f50524f544fbbde")
 UNKNOWN = bytes.fromhex("fd0100000901bfffff7f000000")
+# Captured by a passive Jetson TCP observer on 2026-11-01. Its unknown
+# message ID has no verifiable CRC; the untrusted header claims source 1/191.
+FIELD_UNKNOWN = bytes.fromhex("fd1000002201bf27b292f51c00002301011e0000cec040011b3b203c")
 
 
 def read_for(peer, seconds):
@@ -78,15 +81,16 @@ def main(binary):
                 expect(primary, PAYLOAD, "invalid CRC cannot block real payload")
                 expect(redundant, PAYLOAD, "redundant UART receives real payload")
 
-                bridge.close()
-                bridge = connect(port, process)
-                os.write(primary, UNKNOWN)
-                expect(bridge, UNKNOWN, "unknown dialect frame still passes through")
-                expect(primary, b"", "unknown frame is not echoed to its source")
-                expect(redundant, b"", "unknown frame is not echoed to its source group")
-                bridge.sendall(PAYLOAD)
-                expect(primary, PAYLOAD, "unknown source cannot poison the UART route")
-                expect(redundant, PAYLOAD, "unknown source cannot poison the UART group")
+                for label, unknown in [("field-captured", FIELD_UNKNOWN), ("synthetic", UNKNOWN)]:
+                    bridge.close()
+                    bridge = connect(port, process)
+                    os.write(primary, unknown)
+                    expect(bridge, unknown, f"{label}: unknown dialect frame still passes through")
+                    expect(primary, b"", f"{label}: unknown frame is not echoed to its source")
+                    expect(redundant, b"", f"{label}: unknown frame is not echoed to its source group")
+                    bridge.sendall(PAYLOAD)
+                    expect(primary, PAYLOAD, f"{label}: unknown source cannot poison the UART route")
+                    expect(redundant, PAYLOAD, f"{label}: unknown source cannot poison the UART group")
 
                 bridge.close()
                 bridge = connect(port, process)
