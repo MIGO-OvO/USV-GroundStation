@@ -4238,7 +4238,7 @@ dependencies = [
 
 [[package]]
 name = "usv-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bitflags 2.13.2",
  "mavlink",
@@ -4261,7 +4261,7 @@ dependencies = [
 
 [[package]]
 name = "usv-groundstation"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",

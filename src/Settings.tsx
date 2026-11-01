@@ -235,7 +235,7 @@ export default function Settings({
                 type="url"
                 value={ros}
                 onChange={(e) => setRos(e.target.value)}
-                placeholder="http://192.168.1.100:5000"
+                placeholder="http://10.42.0.1:5000"
               />
             </label>
             <button
@@ -408,7 +408,7 @@ export default function Settings({
           <dl className="settings-info">
             <div>
               <dt>版本</dt>
-              <dd>0.1.1</dd>
+              <dd>0.1.2</dd>
             </div>
             <div>
               <dt>控制核心</dt>

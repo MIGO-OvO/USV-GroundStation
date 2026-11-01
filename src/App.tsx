@@ -50,7 +50,7 @@ type Workspace =
   | "diagnostics"
   | "settings";
 const defaults: Preferences = {
-  rosUrl: "http://127.0.0.1:5000",
+  rosUrl: "http://10.42.0.1:5000",
   mapStyle: "gsatellite",
   mapSource: "google",
   offline: false,
@@ -63,6 +63,9 @@ function loadPreferences(): Preferences {
     return {
       ...defaults,
       ...saved,
+      ...(saved.rosUrl === "http://127.0.0.1:5000"
+        ? { rosUrl: defaults.rosUrl }
+        : {}),
       ...(saved.mapSource
         ? {}
         : { mapSource: "google", mapEnabled: true, mapStyle: "gsatellite" }),
@@ -647,7 +650,7 @@ export default function App() {
         <span>
           WGS 84
           <span className="footer-divider" />
-          v0.1.1
+          v0.1.2
         </span>
       </footer>
       {confirmation && (

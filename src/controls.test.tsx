@@ -23,6 +23,19 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it.each([
+  [undefined, "http://10.42.0.1:5000"],
+  ["http://127.0.0.1:5000", "http://10.42.0.1:5000"],
+  ["http://192.168.2.10:5000", "http://192.168.2.10:5000"],
+])("loads ROS Web preference %s as %s", (rosUrl, expected) => {
+  localStorage.setItem("usv.preferences", JSON.stringify({ rosUrl }));
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
+  expect(screen.getByPlaceholderText("http://10.42.0.1:5000")).toHaveValue(
+    expected,
+  );
+});
+
 it("migrates the old ROS-only map setting to automatic local Google maps", () => {
   localStorage.setItem(
     "usv.preferences",
