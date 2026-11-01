@@ -59,6 +59,20 @@ try {
   assert.equal(snapshot.telemetry.system_id, null);
   assert.equal(snapshot.identity_error, null);
   assert.equal(snapshot.log_error, null);
+  const offlinePolicyError = await page.evaluate(async () => {
+    const invoke = window.__TAURI_INTERNALS__.invoke;
+    await invoke('map_set_offline', { offline: true });
+    try {
+      await invoke('map_location', { offline: false }).catch(() => null);
+      return await invoke('map_tile', {
+        source: 'google', baseUrl: '', style: 'gsatellite', z: 20, x: 0, y: 0, offline: false,
+      }).then(() => null, error => String(error));
+    } finally {
+      await invoke('map_set_offline', { offline: false });
+    }
+  });
+  assert.match(offlinePolicyError ?? '', /该区域尚无本机离线瓦片/,
+    'Location lookup must not override the global offline setting');
   let mapEvidence = 'not requested';
   if (process.env.USV_NATIVE_ONLINE_MAP === '1') {
     const tile = { source: 'google', baseUrl: '', style: 'gsatellite', z: 0, x: 0, y: 0, offline: false };
@@ -77,7 +91,7 @@ try {
   assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
   await page.getByRole('button', { name: '诊断', exact: true }).click();
   assert.equal(await page.getByRole('heading', { name: '通信诊断' }).isVisible(), true);
-  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, mapEvidence, screenshot: '.impeccable/review/windows-native.png' }));
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, offlinePolicy: 'preserved across location lookup', mapEvidence, screenshot: '.impeccable/review/windows-native.png' }));
 } finally {
   if (browser) await browser.close();
   if (app.pid) app.kill();

@@ -228,7 +228,6 @@ async fn map_tile(
 #[tauri::command]
 async fn map_location(state: State<'_, AppState>, offline: bool) -> Result<LocalPosition, String> {
     let cache = state.maps.clone();
-    cache.set_offline(offline);
     tauri::async_runtime::spawn_blocking(move || cache.local_position(offline))
         .await
         .map_err(|e| e.to_string())?
