@@ -1,0 +1,50 @@
+diff --git a/src/endpoint.cpp b/src/endpoint.cpp
+--- a/src/endpoint.cpp
++++ b/src/endpoint.cpp
+@@ -243,8 +243,10 @@
+                           buf.curr.src_compid);
+             }
+         } else {
+-            _add_sys_comp_id(buf.curr.src_sysid, buf.curr.src_compid);
+-            Mainloop::get_instance().route_msg(&buf);
++            if (r == ReadOk) {
++                _add_sys_comp_id(buf.curr.src_sysid, buf.curr.src_compid);
++            }
++            Mainloop::get_instance().route_msg(&buf, this);
+         }
+     }
+
+diff --git a/src/mainloop.cpp b/src/mainloop.cpp
+--- a/src/mainloop.cpp
++++ b/src/mainloop.cpp
+@@ -155,11 +155,17 @@
+     return r;
+ }
+
+-void Mainloop::route_msg(struct buffer *buf)
++void Mainloop::route_msg(struct buffer *buf, const Endpoint *source)
+ {
+     bool unknown = true;
+
+     for (const auto &e : this->g_endpoints) {
++        // Unknown messages are forwarded without learning their unverified source.
++        if (source && (e.get() == source ||
++                       (!source->get_group_name().empty() &&
++                        source->get_group_name() == e->get_group_name()))) {
++            continue;
++        }
+         auto acceptState = e->accept_msg(buf);
+
+         switch (acceptState) {
+diff --git a/src/mainloop.h b/src/mainloop.h
+--- a/src/mainloop.h
++++ b/src/mainloop.h
+@@ -58,7 +58,7 @@
+     int mod_fd(int fd, void *data, int events) const;
+     int remove_fd(int fd) const;
+     int loop();
+-    void route_msg(struct buffer *buf);
++    void route_msg(struct buffer *buf, const Endpoint *source = nullptr);
+     void handle_tcp_connection();
+     int write_msg(const std::shared_ptr<Endpoint> &e, const struct buffer *buf) const;
+     void process_tcp_hangups();

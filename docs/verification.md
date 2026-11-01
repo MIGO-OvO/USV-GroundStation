@@ -1,5 +1,13 @@
 # 验证记录
 
+## v0.1.2 现场地址与 router 候选
+
+日期：2026-11-01。本机 React 11 项、Playwright 9 项、TypeScript/Vite 与 diff 检查通过。新增检查覆盖新安装默认地址、旧 loopback 默认迁移、自定义 ROS 地址保留。Playwright 首次双 worker 因 esbuild 内存分配失败中断；限制进程 GOMAXPROCS=2、单 worker 后全部通过，未删除断言。
+
+router 候选在 WSL 使用现场 `2362c62` 源码编译。原版先在真实 router 进程、PTY 与本机 TCP 回归中失败：合成未知 `1/191` 帧后，真实载荷未到达 UART。应用三文件补丁并重新编译后，14 项检查通过，包括未知消息透传、接收端/同组回环、CRC 错误、TCP 重连及有效来源学习。独立内存端点测试也复现并通过修复。重跑入口见 [候选说明](../tools/jetson-router/README.md)。这项 WSL 检查不产生 Linux 发布包。
+
+Jetson 现场只读检查证实 TCP 载荷仍在发送、UART framing 错误增长、数传载荷断流，参数截图与 Jetson 显式配置一致。尚未抓到触发来源污染的 `1/191` 未知帧；候选未部署、未重启现场服务，也未执行物理控制命令。完整证据边界见 [问题记录](map-payload-fix.md)。Windows 当前提交的 CI、NSIS 与原生检查以 Release 随附构建来源记录为准。
+
 ## v0.1.1 修复验证
 
 日期：2026-11-01，Windows x64。本轮只构建 Windows NSIS。

@@ -1,6 +1,6 @@
 # 地图缓存与载荷离线修复
 
-日期：2026-11-01。版本：0.1.1。
+日期：2026-11-01。地图与在线判定修复：0.1.1；现场地址与路由候选：0.1.2。
 
 ## 地图
 
@@ -30,7 +30,15 @@
 
 这些日志表明该时间窗存在实际载荷回程断流，不能只靠在线判定修复消除。现有记录缺少断流起点和 Jetson 侧证据，尚无法区分 bridge 停发、router/TELEM2 路径丢失或飞控未收到有效载荷输入。原始日志与摘要已在本机 `.reference/bugs/2026-11-01` 留存，不随源码或安装包分发。
 
-接下来需对齐同一时间窗的 Jetson `/api/diagnostics/link`、`/api/diagnostics/system`、bridge/router 日志及飞控端计数。检查 bridge 的 tx_heartbeat、tx_named_value、TCP 会话、deferred/error 与飞控缓存输入。观察性核查期间不重放采样 START。真实断流和实船恢复尚未验收。
+### 后续现场只读核查
+
+ROS Web 使用 `http://10.42.0.1:5000`，COM14 为数传电台。Jetson bridge 持续向本机 router TCP 5760 发送；402 秒内 tx_named_value 增加 20100，写入完成计数增长，未记录发送错误。被动连接该 TCP 端能收到 CRC 有效的 `1/191` 心跳和载荷字段。同期 Windows 数传仍只有 FCU/MAVROS，未收到载荷证据。
+
+同一 5.006 秒窗口，TCP 收到 254 条有效载荷帧、6974 字节；ttyTHS1 内核计数 rx 增加 10787、tx 增加 684、frame 增加 1255。三次观察均有 framing 错误。用户参数截图为 SERIAL2_BAUD=921600、SERIAL2_PROTOCOL=MAVLink2、SERIAL2_OPTIONS=0，与 Jetson 启动参数一致；显式参数不一致的假设已排除。驱动计数和 TCP 写入完成不能单独证明飞控收到有效数据。
+
+现场 router 为 `2362c620f483cef1edd574fb962a373a288e4b9e`。源码会永久学习未校验 CRC 的未知消息来源，随后按来源阻止回环。用实际 router 进程、临时 PTY 与本机 TCP 注入合成未知 `1/191` 帧后，原版持续拒绝真实载荷报文；TCP 重连不能清除 UART 来源记录。补丁限制来源学习为 CRC 有效消息，并在未知消息转发时排除输入端和同组端点，14 项离线检查通过。
+
+现场短抓包包含许多损坏或未知 FCU 帧，但没有捕获触发污染的 `1/191` 未知帧。此缺陷已离线复现，现场归因与 UART 错误原因仍需核实。候选源码、回归命令和部署回退步骤见 [router 修复候选](../tools/jetson-router/README.md)。未部署到 Jetson、未重启 router；后续需操作员确认静止台架后，比较补丁前后同窗证据。全部现场核查没有发送物理控制命令。
 
 ## 验证入口
 

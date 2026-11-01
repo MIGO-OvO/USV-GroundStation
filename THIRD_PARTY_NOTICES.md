@@ -6,6 +6,8 @@
 
 QGC、ROS、ArduPilot 与检测板源码用于核查现有协议和行为。项目没有复制或分发这些参考仓库的源码、Qt/QML 组件、图片、字体或二进制；忽略的 `.reference` 不进入 Git、安装包或发布附件。测试 fixture 由 pymavlink 和 ROS ledger 工具输出报文/JSON后独立整理，生成脚本注明来源；不是现场采集数据。五个参考版本见 docs/source-baseline.md。
 
+`tools/jetson-router/route-learning.patch` 包含 MAVLink Router `2362c620f483cef1edd574fb962a373a288e4b9e` 的少量上下文及本项目修复，沿用 Apache-2.0。原文件版权属于 Intel Corporation 与 MAVLink Router Contributors，应用补丁后保留原文件声明；完整许可证见本项目 LICENSE。该候选工具不随 Windows 安装器部署。
+
 ## 直接依赖
 
 | 依赖 | 许可证 |
