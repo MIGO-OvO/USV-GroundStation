@@ -1,6 +1,7 @@
 import { chromium } from '@playwright/test';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
+import { once } from 'node:events';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
@@ -13,10 +14,11 @@ await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
 await mkdir('.reference', { recursive: true });
 const profile = await mkdtemp(resolve('.reference/native-smoke-'));
-const app = spawn(binary, [], { windowsHide: true, env: { ...process.env,
+const launchOptions = { windowsHide: true, env: { ...process.env,
   USV_GROUNDSTATION_DATA_DIR: profile,
   WEBVIEW2_USER_DATA_FOLDER: resolve(profile, 'webview'),
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' };
+let app = spawn(binary, [], launchOptions);
 let processError;
 let processExit;
 let processOutput = '';
@@ -27,6 +29,15 @@ for (const stream of [app.stdout, app.stderr]) {
 }
 let browser;
 let connectionError;
+const sockets = new Set();
+let connections = 0;
+const peer = createServer(socket => {
+  connections++;
+  sockets.add(socket);
+  socket.on('error', () => {});
+  socket.on('close', () => sockets.delete(socket));
+  socket.on('data', () => {});
+});
 try {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline && !browser) {
@@ -53,6 +64,8 @@ try {
     if (!page) await new Promise(r => setTimeout(r, 100));
   }
   assert(page, 'Tauri webview page missing');
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
   await page.getByRole('heading', { name: '航行驾驶舱' }).waitFor();
   const snapshot = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
   assert.equal(snapshot.link, 'disconnected');
@@ -89,10 +102,50 @@ try {
   await page.screenshot({ path: '.impeccable/review/windows-native.png', fullPage: true });
   await page.getByRole('button', { name: '连接与设置' }).click();
   assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
+  await page.getByRole('checkbox', { name: '启用底图' }).uncheck();
   await page.getByRole('button', { name: '诊断', exact: true }).click();
   assert.equal(await page.getByRole('heading', { name: '通信诊断' }).isVisible(), true);
-  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, offlinePolicy: 'preserved across location lookup', mapEvidence, screenshot: '.impeccable/review/windows-native.png' }));
+  await new Promise(r => peer.listen(0, '127.0.0.1', r));
+  const target = { config: { kind: 'tcp', host: '127.0.0.1', port: peer.address().port }, target_system: 7 };
+  await page.getByRole('button', { name: '连接与设置' }).click();
+  await page.getByRole('button', { name: 'TCP', exact: true }).click();
+  await page.getByRole('textbox', { name: 'TCP 主机' }).fill(target.config.host);
+  await page.getByRole('spinbutton', { name: '端口', exact: true }).fill(String(target.config.port));
+  await page.getByRole('spinbutton', { name: '目标 sysid' }).fill('7');
+  await page.getByRole('button', { name: '连接设备' }).click();
+  const firstDeadline = Date.now() + 10000;
+  while (connections < 1 && Date.now() < firstDeadline) await new Promise(r => setTimeout(r, 100));
+  assert.equal(connections, 1);
+  await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('station_snapshot')).saved_connection !== null);
+  const saved = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
+  assert.deepEqual(saved.saved_connection, target);
+  assert.equal(saved.connection_error, null);
+  await page.getByRole('button', { name: '断开', exact: true }).click();
+  await page.reload();
+  await page.getByRole('button', { name: '连接与设置' }).click();
+  assert.equal(await page.getByRole('spinbutton', { name: '端口', exact: true }).inputValue(), String(target.config.port));
+  await new Promise(r => setTimeout(r, 2300));
+  assert.equal(connections, 1, 'frontend reload must preserve manual disconnect');
+  await browser.close();
+  browser = undefined;
+  if (!processExit) {
+    const exited = once(app, 'exit');
+    app.kill();
+    await exited;
+  }
+  app = spawn(binary, [], launchOptions);
+  app.on('error', error => { processError = error; });
+  const restartDeadline = Date.now() + 15000;
+  while (connections < 2 && Date.now() < restartDeadline && !processError) await new Promise(r => setTimeout(r, 100));
+  assert.ifError(processError);
+  assert.equal(connections, 2, 'new native process must restore the saved TCP connection');
+  await new Promise(r => setTimeout(r, 600));
+  assert.equal(connections, 2, 'startup must open the connection once');
+  assert.deepEqual(pageErrors, [], 'map startup and telemetry must not crash React');
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, offlinePolicy: 'preserved across location lookup', mapEvidence, startupAutoConnect: 'one loopback TCP connection after native process restart', manualDisconnect: 'preserved across frontend reload', screenshot: '.impeccable/review/windows-native.png' }));
 } finally {
   if (browser) await browser.close();
   if (app.pid) app.kill();
+  for (const socket of sockets) socket.destroy();
+  peer.close();
 }

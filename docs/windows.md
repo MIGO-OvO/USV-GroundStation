@@ -2,7 +2,7 @@
 
 ## 安装
 
-下载 Release 的 `USV.GroundStation_0.1.1_x64-setup.exe`，核对同版本 SHA256 后安装。支持 Windows 10/11 x64，需要 Microsoft WebView2 Runtime。NSIS 安装器使用 Tauri 的 WebView2 引导安装；无网络的计算机应先安装微软离线 Runtime。
+下载 Release 的 `USV.GroundStation_0.1.3_x64-setup.exe`，核对同版本 SHA256 后安装。支持 Windows 10/11 x64，需要 Microsoft WebView2 Runtime。NSIS 安装器使用 Tauri 的 WebView2 引导安装；无网络的计算机应先安装微软离线 Runtime。
 
 首版没有 Windows 代码签名证书。系统可能显示未知发布者。项目不会改动飞控、Jetson 或检测板固件。
 
@@ -14,9 +14,13 @@
 |---|---|---|
 | UDP | 本机 `0.0.0.0:14550` | router 向本机发送遥测；匹配目标心跳后锁定对端 |
 | TCP | Jetson IP，端口 `5760` | 接入现有 mavlink-router；按现场配置填写 |
-| Windows 串口 | `COM5`，`115200` | 使用实际电台/USB 波特率，首版尚未做物理串口验收 |
+| Windows 串口 | `COM14`，`115200` | 已验证现场数传接收及进程重启自动连接；控制任务按台架清单验收 |
 
 默认 GCS 为 254/190。留空目标 sysid 时识别 ArduRover/boat component 1；指定 sysid 可限制目标。飞控和载荷 191 分别显示在线状态。串口和 TCP 自动重连只恢复接收，不重放旧物理操作。
+
+点击“连接设备”时，Rust 将连接类型、UDP 地址/对端、TCP 主机/端口或串口/波特率，以及目标 sysid 保存到本机 `identity.sqlite` 的连接配置项。启动程序后，Rust 自动恢复这条连接；端口暂不可用时显示错误并间隔重试。页面切换或刷新不触发连接。点击“断开”会暂停本次运行的重连；下次启动仍使用保存的参数。
+
+首次升级到 0.1.3 后填写并连接一次，建立保存项；此前版本未保存飞控连接参数。存储失败会在设置页显示原因，当前连接仍可使用。现场 COM14 是数传电台，Windows 端波特率为 115200；这与 Jetson 到飞控的 921600 是两个不同串口。
 
 同一 UDP 端口通常只能由一个地面站绑定。与 QGC 比对时，在 router 给两个地面站配置各自端点。确认局域网路由及 Windows 防火墙允许所选端口。
 
@@ -70,7 +74,7 @@ npm run tauri -- build --bundles nsis
 node tools/native-smoke.mjs
 ```
 
-构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`ensure-webview2.ps1` 检查 Runtime，缺失时下载并校验微软签名的官方安装器。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，不建立设备连接。它是开发检查工具，默认程序不会打开 CDP 端口。
+构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`ensure-webview2.ps1` 检查 Runtime，缺失时下载并校验微软签名的官方安装器。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，再用本机临时 TCP 服务验证配置保存、页面刷新后保持断开及真实程序重启后的单次自动连接。它不连接船，是开发检查工具，默认程序不会打开 CDP 端口。
 
 本机检查使用普通权限终端。GitHub Actions 的管理员 runner 由 `ci-native-smoke.ps1` 临时设置本程序的 HKLM WebView2 调试参数并在结束时恢复；WebView2 150 起会忽略管理员进程环境变量中的浏览器参数。该脚本仅用于 Actions。
 

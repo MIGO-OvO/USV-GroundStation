@@ -5,6 +5,7 @@ use usv_core::{
     payload::{self, PayloadEvent, Reassembler, RequestRecord, RequestState},
     station::{Engine, Intent},
     telemetry::{PAYLOAD_FIELDS, Telemetry},
+    transport::{ConnectionConfig, SavedConnection},
     wire::{self, WireMessage, commands, standard::*},
 };
 
@@ -704,4 +705,105 @@ fn emergency_can_accept_a_new_full_stop_after_reconnect() {
     ingest_event(&mut e, &id, "request", "accepted", 1, 400);
     assert!(e.safety.payload_confirmed);
     assert!(!e.safety.propulsion_confirmed);
+}
+
+#[test]
+fn all_connection_settings_survive_restart_and_manual_disconnect() {
+    for config in [
+        ConnectionConfig::Serial {
+            port: "COM14".into(),
+            baud: 115200,
+        },
+        ConnectionConfig::Udp {
+            bind: "0.0.0.0:14550".into(),
+            peer: Some("127.0.0.1:14551".into()),
+        },
+        ConnectionConfig::Tcp {
+            host: "10.42.0.1".into(),
+            port: 5760,
+        },
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let profile = SavedConnection {
+            config: config.clone(),
+            target_system: Some(7),
+        };
+        let mut engine = Engine::new(d.path());
+        engine
+            .intent(
+                Intent::Connect {
+                    config: config.clone(),
+                    target_system: profile.target_system,
+                },
+                10,
+            )
+            .unwrap();
+        engine.intent(Intent::Disconnect, 20).unwrap();
+        assert!(engine.snapshot(20).connection.is_none());
+        assert_eq!(engine.snapshot(20).saved_connection, Some(profile.clone()));
+        drop(engine);
+        let mut restarted = Engine::new(d.path());
+        assert_eq!(restarted.snapshot(0).saved_connection, Some(profile));
+        assert_eq!(restarted.snapshot(0).connection, Some(config));
+        restarted.ingest(header(1), heartbeat(1), 100);
+        assert!(
+            restarted.telemetry.system_id.is_none(),
+            "restored target sysid filters other vessels"
+        );
+        let mut target = header(1);
+        target.system_id = 7;
+        restarted.ingest(target, heartbeat(1), 110);
+        assert_eq!(restarted.telemetry.system_id, Some(7));
+    }
+}
+
+#[test]
+fn malformed_saved_connection_can_be_replaced_without_disabling_control_storage() {
+    let d = tempfile::tempdir().unwrap();
+    let store = IdentityStore::open(&d.path().join("identity.sqlite")).unwrap();
+    store
+        .set_meta(
+            "connection",
+            &json!({"config":{"kind":"serial","port":"COM14","baud":0},"target_system":1}),
+        )
+        .unwrap();
+    drop(store);
+    let mut engine = Engine::new(d.path());
+    assert!(engine.snapshot(0).connection.is_none());
+    assert!(engine.snapshot(0).connection_error.is_some());
+    assert!(engine.snapshot(0).identity_error.is_none());
+    let valid = ConnectionConfig::Serial {
+        port: "COM14".into(),
+        baud: 115200,
+    };
+    engine
+        .intent(
+            Intent::Connect {
+                config: valid.clone(),
+                target_system: None,
+            },
+            10,
+        )
+        .unwrap();
+    assert!(engine.snapshot(10).connection_error.is_none());
+    assert!(
+        engine
+            .intent(
+                Intent::Connect {
+                    config: valid.clone(),
+                    target_system: Some(0)
+                },
+                20
+            )
+            .is_err()
+    );
+    drop(engine);
+    let restarted = Engine::new(d.path());
+    assert_eq!(
+        restarted.snapshot(0).saved_connection.unwrap(),
+        SavedConnection {
+            config: valid,
+            target_system: None
+        }
+    );
 }

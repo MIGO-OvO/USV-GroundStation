@@ -10,6 +10,8 @@ export const emptySnapshot: Snapshot = {
   clock_id: "",
   link: "disconnected",
   connection: null,
+  saved_connection: null,
+  connection_error: null,
   error: null,
   identity_error: null,
   log_error: null,

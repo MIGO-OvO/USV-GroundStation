@@ -21,6 +21,36 @@ impl Default for ConnectionConfig {
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SavedConnection {
+    pub config: ConnectionConfig,
+    pub target_system: Option<u8>,
+}
+impl SavedConnection {
+    pub fn validate(&self) -> Result<()> {
+        if self.target_system == Some(0) {
+            return Err("目标 sysid 必须在 1 至 255 之间".into());
+        }
+        match &self.config {
+            ConnectionConfig::Udp { bind, .. } => {
+                if bind.trim().is_empty() {
+                    return Err("UDP 监听地址无效".into());
+                }
+            }
+            ConnectionConfig::Tcp { host, port } => {
+                if host.trim().is_empty() || *port == 0 {
+                    return Err("TCP 地址或端口无效".into());
+                }
+            }
+            ConnectionConfig::Serial { port, baud } => {
+                if port.trim().is_empty() || *baud == 0 {
+                    return Err("串口或波特率无效".into());
+                }
+            }
+        }
+        Ok(())
+    }
+}
 pub enum Transport {
     Tcp(TcpStream),
     Udp {

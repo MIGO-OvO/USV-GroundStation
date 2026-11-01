@@ -2,6 +2,10 @@ export type ConnectionConfig =
   | { kind: "udp"; bind: string; peer: string | null }
   | { kind: "tcp"; host: string; port: number }
   | { kind: "serial"; port: string; baud: number };
+export interface SavedConnection {
+  config: ConnectionConfig;
+  target_system: number | null;
+}
 export interface Field {
   value: number;
   received_ms: number;
@@ -168,6 +172,8 @@ export interface Snapshot {
   clock_id: string;
   link: string;
   connection: ConnectionConfig | null;
+  saved_connection: SavedConnection | null;
+  connection_error: string | null;
   error: string | null;
   identity_error: string | null;
   log_error: string | null;

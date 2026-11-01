@@ -30,8 +30,10 @@ function style(p: Preferences): StyleSpecification {
   const tiles = `usvtiles://tile?source=${p.mapSource}&base=${encodeURIComponent(p.rosUrl)}&style=${p.mapStyle}&z={z}&x={x}&y={y}&offline=${p.offline}`;
   return {
     version: 8,
-    sources:
-      native && p.mapEnabled
+    sources: {
+      track: { type: "geojson", data: collection([]) },
+      route: { type: "geojson", data: collection([]) },
+      ...(native && p.mapEnabled
         ? {
             raster: {
               type: "raster",
@@ -42,7 +44,8 @@ function style(p: Preferences): StyleSpecification {
                 p.mapSource === "google" ? "© Google" : "© 高德 · ROS 瓦片服务",
             },
           }
-        : {},
+        : {}),
+    },
     layers: [
       {
         id: "background",
@@ -54,6 +57,26 @@ function style(p: Preferences): StyleSpecification {
       ...(native && p.mapEnabled
         ? [{ id: "imagery", type: "raster" as const, source: "raster" }]
         : []),
+      {
+        id: "track",
+        type: "line",
+        source: "track",
+        paint: {
+          "line-color": p.theme === "dark" ? "#bdbdbd" : "#525252",
+          "line-width": 3,
+          "line-opacity": 0.8,
+        },
+      },
+      {
+        id: "route",
+        type: "line",
+        source: "route",
+        paint: {
+          "line-color": p.theme === "dark" ? "#8aafff" : "#2563eb",
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+        },
+      },
     ],
   };
 }
@@ -183,28 +206,6 @@ export default function MapView({
       "bottom-left",
     );
     m.on("load", () => {
-      m.addSource("track", { type: "geojson", data: collection([]) });
-      m.addSource("route", { type: "geojson", data: collection([]) });
-      m.addLayer({
-        id: "track",
-        type: "line",
-        source: "track",
-        paint: {
-          "line-color": preferences.theme === "dark" ? "#bdbdbd" : "#525252",
-          "line-width": 3,
-          "line-opacity": 0.8,
-        },
-      });
-      m.addLayer({
-        id: "route",
-        type: "line",
-        source: "route",
-        paint: {
-          "line-color": preferences.theme === "dark" ? "#8aafff" : "#2563eb",
-          "line-width": 3,
-          "line-dasharray": [2, 2],
-        },
-      });
       setLoaded((v) => v + 1);
     });
     m.on("click", (event) => {

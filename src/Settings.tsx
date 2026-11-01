@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Cable, Wifi, Server, Save, Map, RefreshCw } from "lucide-react";
 import type {
   Snapshot,
@@ -22,16 +22,46 @@ export default function Settings({
   send: SendIntent;
   notify: Notify;
 }) {
+  const previous = s.saved_connection?.config ?? s.connection;
+  const hydrated = useRef(Boolean(previous));
   const [kind, setKind] = useState<"udp" | "tcp" | "serial">(
-    s.connection?.kind ?? "udp",
+    previous?.kind ?? "udp",
   );
-  const [bind, setBind] = useState("0.0.0.0:14550"),
-    [peer, setPeer] = useState("");
-  const [host, setHost] = useState("127.0.0.1"),
-    [port, setPort] = useState(5760),
-    [serial, setSerial] = useState("COM5"),
-    [baud, setBaud] = useState(115200);
-  const [target, setTarget] = useState("");
+  const [bind, setBind] = useState(
+      previous?.kind === "udp" ? previous.bind : "0.0.0.0:14550",
+    ),
+    [peer, setPeer] = useState(
+      previous?.kind === "udp" ? (previous.peer ?? "") : "",
+    );
+  const [host, setHost] = useState(
+      previous?.kind === "tcp" ? previous.host : "127.0.0.1",
+    ),
+    [port, setPort] = useState(previous?.kind === "tcp" ? previous.port : 5760),
+    [serial, setSerial] = useState(
+      previous?.kind === "serial" ? previous.port : "COM5",
+    ),
+    [baud, setBaud] = useState(
+      previous?.kind === "serial" ? previous.baud : 115200,
+    );
+  const [target, setTarget] = useState(
+    s.saved_connection?.target_system?.toString() ?? "",
+  );
+  useEffect(() => {
+    if (hydrated.current || !previous) return;
+    hydrated.current = true;
+    setKind(previous.kind);
+    if (previous.kind === "udp") {
+      setBind(previous.bind);
+      setPeer(previous.peer ?? "");
+    } else if (previous.kind === "tcp") {
+      setHost(previous.host);
+      setPort(previous.port);
+    } else {
+      setSerial(previous.port);
+      setBaud(previous.baud);
+    }
+    setTarget(s.saved_connection?.target_system?.toString() ?? "");
+  }, [previous, s.saved_connection?.target_system]);
   const [ros, setRos] = useState(preferences.rosUrl);
   const [configText, setConfigText] = useState("");
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -108,7 +138,12 @@ export default function Settings({
         </div>
       </header>
       <div className="settings-scroll">
-        <section className="connection-settings">
+        <section
+          className="connection-settings"
+          onChangeCapture={() => {
+            hydrated.current = true;
+          }}
+        >
           <h2>
             <Cable size={19} />
             飞控连接
@@ -120,7 +155,10 @@ export default function Settings({
                 <button
                   key={k}
                   className={kind === k ? "active" : ""}
-                  onClick={() => setKind(k)}
+                  onClick={() => {
+                    hydrated.current = true;
+                    setKind(k);
+                  }}
                 >
                   {k === "serial" ? "Windows 串口" : k.toUpperCase()}
                 </button>
@@ -218,6 +256,14 @@ export default function Settings({
             <span className="caption">GCS 254 / 190 · MAVLink 2</span>
           </div>
           {s.error && <p className="inline-error">{s.error}</p>}
+          {s.connection_error && (
+            <p className="inline-error" role="alert">
+              {s.connection_error}
+            </p>
+          )}
+          <p className="caption">
+            连接参数保存在本机，下次启动自动连接。手动断开后，本次运行暂停重连。
+          </p>
           <p className="caption">
             TCP 默认指向 mavlink-router；UDP
             在匹配飞控心跳后固定对端。重新连接只同步状态。
@@ -408,7 +454,7 @@ export default function Settings({
           <dl className="settings-info">
             <div>
               <dt>版本</dt>
-              <dd>0.1.2</dd>
+              <dd>0.1.3</dd>
             </div>
             <div>
               <dt>控制核心</dt>

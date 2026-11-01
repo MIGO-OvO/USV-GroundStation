@@ -6,6 +6,7 @@ import { PayloadControls } from "./PayloadWorkspace";
 import { Timeline } from "./Diagnostics";
 import { Reading } from "./ui";
 import App from "./App";
+import Settings from "./Settings";
 
 const mock = vi.hoisted(() => ({
   snapshot: null as unknown as Snapshot,
@@ -22,6 +23,66 @@ beforeEach(() => {
   localStorage.clear();
 });
 afterEach(cleanup);
+
+it("restores saved serial settings after disconnect and navigation", () => {
+  mock.snapshot.saved_connection = {
+    config: { kind: "serial", port: "COM14", baud: 230400 },
+    target_system: 7,
+  };
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
+  expect(screen.getByRole("textbox", { name: "串口" })).toHaveValue("COM14");
+  expect(screen.getByRole("combobox", { name: "波特率" })).toHaveValue(
+    "230400",
+  );
+  expect(screen.getByRole("spinbutton", { name: "目标 sysid" })).toHaveValue(7);
+  fireEvent.click(screen.getByRole("button", { name: "诊断" }));
+  fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
+  expect(screen.getByRole("textbox", { name: "串口" })).toHaveValue("COM14");
+  expect(mock.send).not.toHaveBeenCalled();
+});
+
+it("hydrates a delayed backend profile and preserves subsequent form edits", () => {
+  const props = {
+    s: mock.snapshot,
+    preferences: {
+      rosUrl: "http://10.42.0.1:5000",
+      mapStyle: "gsatellite",
+      mapSource: "google" as const,
+      offline: true,
+      theme: "light" as const,
+      mapEnabled: false,
+    },
+    setPreferences: vi.fn(),
+    send: mock.send,
+    notify: vi.fn(),
+  };
+  const view = render(<Settings {...props} />);
+  const saved = {
+    config: { kind: "tcp" as const, host: "10.42.0.1", port: 5762 },
+    target_system: 1,
+  };
+  view.rerender(
+    <Settings {...props} s={{ ...mock.snapshot, saved_connection: saved }} />,
+  );
+  expect(screen.getByRole("textbox", { name: "TCP 主机" })).toHaveValue(
+    "10.42.0.1",
+  );
+  expect(screen.getByRole("spinbutton", { name: "端口" })).toHaveValue(5762);
+  fireEvent.change(screen.getByRole("textbox", { name: "TCP 主机" }), {
+    target: { value: "10.42.0.2" },
+  });
+  view.rerender(
+    <Settings
+      {...props}
+      s={{ ...mock.snapshot, saved_connection: structuredClone(saved) }}
+    />,
+  );
+  expect(screen.getByRole("textbox", { name: "TCP 主机" })).toHaveValue(
+    "10.42.0.2",
+  );
+  expect(mock.send).not.toHaveBeenCalled();
+});
 
 it.each([
   [undefined, "http://10.42.0.1:5000"],

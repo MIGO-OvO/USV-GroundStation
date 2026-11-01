@@ -1,5 +1,27 @@
 # 验证记录
 
+## v0.1.3 连接记忆、启动恢复与现场切换
+
+日期：2026-11-01，Windows x64 NSIS；未构建 Android。
+
+| 检查 | 结果与范围 |
+|---|---|
+| Rust 核心 | 60 项通过：地图 4、Mission 8、回环网络 3、协议 39、ROS/HTTP 6 |
+| Rustfmt / 严格 Clippy | 通过；核心全部 targets |
+| React | 14 项通过；包含串口参数恢复、延迟快照回填、编辑时不被后台覆盖、地图就绪早于 load 事件 |
+| Playwright | 9 项通过；四种尺寸、浅深主题及地图场景 |
+| TypeScript/Vite、NSIS | 本机生产构建通过；最终 CI 和产物对应提交见 Release 的 BUILD_PROVENANCE.json |
+| 原生进程重启 | 真实 Tauri/WebView2 + Rust IPC，隔离 profile；通过 UI 保存本机 TCP 配置，页面刷新保持手动断开，重新启动进程自动建立且只建立一条连接 |
+| 实际数传自动连接 | 隔离 profile 保存 COM14/115200、sysid 1 后重启原生进程，自动恢复飞控与载荷在线；两次均无物理请求、无解码拒绝，UI 无异常 |
+| Jetson ARM64 router | 原版被现场未知帧阻断；候选通过 19 项真实 daemon/PTY/回环 TCP 检查 |
+| 现场接收 | 授权空闲切换后 COM14 载荷持续恢复超过 31 分钟、94147 帧，观测到全部 26 字段；UART framing 错误仍在增长；没有下发物理控制命令 |
+
+连接回归覆盖三种参数及目标 sysid 持久化、无效保存项可恢复、不可达端口恢复、手动断开、启动单次连接以及旧 START 不重放。Windows 重试测试发现：失败连接占满 2 秒后，原先按尝试开始时刻计时会立即再试，延迟错误快照。期限现从尝试结束后计算，保留完整 2 秒间隔；修复后原断言通过，未放宽超时。
+
+真实串口接收检查还复现了地图初始化白屏：`isStyleLoaded()` 已为 true，而 track/route 源仍等到更晚的 load 回调才创建。即时快照回归先在 `setData` 失败。将这两个源和图层放入初始样式后，回归通过；样式重建时也使用同一来源生命周期。
+
+实际数传检查只提交一次连接意图，第二次进程启动从 SQLite 自动恢复。核对该 profile 的发送日志，只有 GCS 心跳和 511 遥测频率请求。现场计数、报文、部署权限和剩余验收见 [问题记录](map-payload-fix.md)；这些接收与连接检查尚未覆盖实船控制任务。
+
 ## v0.1.2 现场地址与 router 候选
 
 日期：2026-11-01。本机 React 11 项、Playwright 9 项、TypeScript/Vite 与 diff 检查通过。新增检查覆盖新安装默认地址、旧 loopback 默认迁移、自定义 ROS 地址保留。Playwright 首次双 worker 因 esbuild 内存分配失败中断；限制进程 GOMAXPROCS=2、单 worker 后全部通过，未删除断言。

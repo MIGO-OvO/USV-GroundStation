@@ -5,7 +5,7 @@ use crate::{
     mission::{MissionDraft, MissionManager, MissionSnapshot},
     payload::{self, PayloadEvent, Reassembler, RequestRecord, RequestState},
     telemetry::Telemetry,
-    transport::{ConnectionConfig, Transport},
+    transport::{ConnectionConfig, SavedConnection, Transport},
     wire::{self, WireMessage, standard::*},
 };
 use mavlink::{MavHeader, Message};
@@ -108,6 +108,8 @@ pub struct Snapshot {
     pub clock_id: String,
     pub link: String,
     pub connection: Option<ConnectionConfig>,
+    pub saved_connection: Option<SavedConnection>,
+    pub connection_error: Option<String>,
     pub error: Option<String>,
     pub identity_error: Option<String>,
     pub log_error: Option<String>,
@@ -152,6 +154,8 @@ pub struct Engine {
     identity_error: Option<String>,
     journal: Journal,
     config: Option<ConnectionConfig>,
+    saved_connection: Option<SavedConnection>,
+    connection_error: Option<String>,
     requested_system: Option<u8>,
     transport: Option<Transport>,
     decoder: wire::Decoder,
@@ -176,6 +180,8 @@ impl Engine {
         };
         let mut records = vec![];
         let mut safety = SafetyState::default();
+        let mut saved_connection = None;
+        let mut connection_error = None;
         if let Some(s) = &store {
             match s.load() {
                 Ok(v) => records = v,
@@ -184,6 +190,14 @@ impl Engine {
             match s.meta("safety") {
                 Ok(v) => safety = v,
                 Err(e) => identity_error = Some(e),
+            }
+            match s.meta::<Option<SavedConnection>>("connection") {
+                Ok(Some(profile)) => match profile.validate() {
+                    Ok(()) => saved_connection = Some(profile),
+                    Err(e) => connection_error = Some(format!("已保存的连接配置无效：{e}")),
+                },
+                Ok(None) => {}
+                Err(e) => connection_error = Some(format!("读取连接配置失败：{e}")),
             }
         }
         for r in &mut records {
@@ -205,7 +219,7 @@ impl Engine {
             safety.issued_ms = None;
             safety.stop_request = None;
         }
-        Self {
+        let mut engine = Self {
             telemetry: Telemetry {
                 generation,
                 ..Default::default()
@@ -218,8 +232,10 @@ impl Engine {
             store,
             identity_error,
             journal: Journal::open(&directory.join("logs")),
-            config: None,
-            requested_system: None,
+            config: saved_connection.as_ref().map(|p| p.config.clone()),
+            requested_system: saved_connection.as_ref().and_then(|p| p.target_system),
+            saved_connection,
+            connection_error,
             transport: None,
             decoder: wire::Decoder::default(),
             assembler: Reassembler::default(),
@@ -232,7 +248,12 @@ impl Engine {
             error: None,
             full_stop_basis: None,
             streams_requested: false,
+        };
+        if engine.config.is_some() {
+            engine.log(0, "connection_restored", "local", None, None, None,
+                json!({"connection":engine.saved_connection,"recovery":"observe_only_no_start_replay"}));
         }
+        engine
     }
     #[expect(
         clippy::too_many_arguments,
@@ -558,8 +579,19 @@ impl Engine {
                 config,
                 target_system,
             } => {
-                if target_system == Some(0) {
-                    return Err("目标 sysid 必须在 1 至 255 之间".into());
+                let profile = SavedConnection {
+                    config: config.clone(),
+                    target_system,
+                };
+                profile.validate()?;
+                let saved = self
+                    .store
+                    .as_ref()
+                    .ok_or_else(|| "连接配置存储不可用".to_string())
+                    .and_then(|store| store.set_meta("connection", &profile));
+                self.connection_error = saved.err().map(|e| format!("保存连接配置失败：{e}"));
+                if self.connection_error.is_none() {
+                    self.saved_connection = Some(profile);
                 }
                 if self.config.is_some() {
                     self.lose_link(now, "操作员切换连接");
@@ -1179,6 +1211,7 @@ impl Engine {
     }
     fn network(&mut self, now: u64) {
         if self.transport.is_none() && self.config.is_some() && now >= self.reconnect_at {
+            let attempt = Instant::now();
             match Transport::open(self.config.as_ref().expect("configured")) {
                 Ok(t) => {
                     self.transport = Some(t);
@@ -1195,7 +1228,7 @@ impl Engine {
                 }
                 Err(e) => {
                     self.error = Some(e);
-                    self.reconnect_at = now + 2000;
+                    self.reconnect_at = now + attempt.elapsed().as_millis() as u64 + 2000;
                 }
             }
         }
@@ -1385,6 +1418,8 @@ impl Engine {
             }
             .into(),
             connection: self.config.clone(),
+            saved_connection: self.saved_connection.clone(),
+            connection_error: self.connection_error.clone(),
             error: self.error.clone(),
             identity_error: self.identity_error.clone(),
             log_error: self.journal.error.clone(),

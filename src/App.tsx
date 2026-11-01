@@ -650,7 +650,7 @@ export default function App() {
         <span>
           WGS 84
           <span className="footer-divider" />
-          v0.1.2
+          v0.1.3
         </span>
       </footer>
       {confirmation && (

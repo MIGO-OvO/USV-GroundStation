@@ -295,5 +295,62 @@ fn tcp_half_frame_reconnect_and_app_restart_never_replay_start() {
     let snap = restarted.snapshot().unwrap();
     assert_eq!(snap.requests.last().unwrap().attempts, 1);
     assert!(!snap.requests.last().unwrap().retry_allowed);
-    assert_eq!(snap.link, "disconnected");
+    assert_eq!(snap.link, "connecting");
+    let mut socket = accept();
+    socket.write_all(&heartbeat(1)).unwrap();
+    socket.write_all(&heartbeat(191)).unwrap();
+    wait(&restarted, |s| s.link == "connected");
+    assert!(!read_commands(&mut socket).contains(&31018));
+    assert!(listener.accept().is_err(), "startup opens one connection");
+    restarted.dispatch(Intent::Disconnect).unwrap();
+    wait(&restarted, |s| s.connection.is_none());
+    thread::sleep(Duration::from_millis(2200));
+    assert!(
+        listener.accept().is_err(),
+        "manual disconnect suspends reconnect"
+    );
+    assert!(restarted.snapshot().unwrap().saved_connection.is_some());
+}
+
+#[test]
+fn unavailable_saved_tcp_retries_until_peer_returns() {
+    let d = tempfile::tempdir().unwrap();
+    let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = reservation.local_addr().unwrap();
+    let config = ConnectionConfig::Tcp {
+        host: "127.0.0.1".into(),
+        port: address.port(),
+    };
+    {
+        let mut engine = usv_core::station::Engine::new(d.path());
+        engine
+            .intent(
+                Intent::Connect {
+                    config: config.clone(),
+                    target_system: Some(1),
+                },
+                0,
+            )
+            .unwrap();
+    }
+    drop(reservation);
+    let station = Station::start(d.path()).unwrap();
+    wait(&station, |s| s.error.is_some());
+    let listener = TcpListener::bind(address).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let at = Instant::now();
+    let mut socket = loop {
+        if let Ok((socket, _)) = listener.accept() {
+            break socket;
+        }
+        assert!(at.elapsed() < Duration::from_secs(5));
+        thread::sleep(Duration::from_millis(20));
+    };
+    socket.write_all(&heartbeat(1)).unwrap();
+    let snapshot = wait(&station, |s| s.link == "connected");
+    assert_eq!(snapshot.connection, Some(config));
+    assert_eq!(snapshot.saved_connection.unwrap().target_system, Some(1));
+    assert!(snapshot.requests.is_empty());
+    assert!(snapshot.error.is_none());
+    station.dispatch(Intent::Disconnect).unwrap();
 }
