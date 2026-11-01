@@ -53,6 +53,7 @@ pub struct Telemetry {
     pub component_id: Option<u8>,
     pub heartbeat_ms: Option<u64>,
     pub payload_heartbeat_ms: Option<u64>,
+    pub payload_telemetry_ms: Option<u64>,
     pub fields: BTreeMap<String, Field>,
     pub track: Vec<[f64; 2]>,
     pub generation: u64,
@@ -67,6 +68,9 @@ impl Telemetry {
         self.connected(now)
             && self
                 .payload_heartbeat_ms
+                .into_iter()
+                .chain(self.payload_telemetry_ms)
+                .max()
                 .is_some_and(|at| now.saturating_sub(at) <= HEARTBEAT_TTL_MS)
     }
     pub fn get(&self, name: &str, now: u64) -> Option<f64> {
@@ -96,6 +100,7 @@ impl Telemetry {
     pub fn reset_link(&mut self) {
         self.heartbeat_ms = None;
         self.payload_heartbeat_ms = None;
+        self.payload_telemetry_ms = None;
         self.fields.clear();
         self.generation += 1;
     }
@@ -161,8 +166,9 @@ impl Telemetry {
             let Ok(name) = b.name.to_str() else {
                 return false;
             };
-            if PAYLOAD_FIELDS.contains(&name) {
+            if PAYLOAD_FIELDS.contains(&name) && b.value.is_finite() {
                 self.put(name, b.value as f64, now, h.component_id);
+                self.payload_telemetry_ms = Some(now);
             }
             return true;
         }

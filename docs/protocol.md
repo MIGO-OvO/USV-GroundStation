@@ -4,7 +4,9 @@
 
 ## 基础链路
 
-使用 MAVLink 2、GCS `254/190`。只通过 `MAV_AUTOPILOT_ARDUPILOTMEGA`、component 1、Rover/boat 心跳识别飞控；可指定 sysid。载荷 component 191 心跳独立判断。飞控心跳超过 5 秒失效，普通字段超过 3 秒失效。
+使用 MAVLink 2、GCS `254/190`。只通过 `MAV_AUTOPILOT_ARDUPILOTMEGA`、component 1、Rover/boat 心跳识别飞控；可指定 sysid。飞控心跳超过 5 秒失效，普通字段超过 3 秒失效。
+
+载荷在线需要飞控在线，并在 5 秒内收到同 sysid 的 component 191 心跳，或 component 191/飞控 component 1 的有效载荷字段。ArduRover 将缓存字段以 1/1 重发，因此单独丢失 191 心跳不等于载荷链路离线。26 项字段之外的 NAMED_VALUE_FLOAT、非有限数、其他 sysid/component 及普通 MAVROS 心跳不会刷新载荷在线时间。心跳和字段接收时间分别保留；具体操作仍需新鲜的 USV_PROTO、USV_STAT 等准入证据。
 
 标准消息委托 rust-mavlink。COMMAND_LONG、COMMAND_INT、COMMAND_ACK 使用独立生成的字段布局，将 command 保存为 u16，以支持 31010 至 31019。三个标准 CRC extra 分别为 152、158、143；没有不安全枚举转换。首版不配置 MAVLink signing，签名帧因未验证被拒绝。
 

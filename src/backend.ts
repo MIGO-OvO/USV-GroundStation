@@ -18,6 +18,7 @@ export const emptySnapshot: Snapshot = {
     component_id: null,
     heartbeat_ms: null,
     payload_heartbeat_ms: null,
+    payload_telemetry_ms: null,
     fields: {},
     track: [],
     generation: 0,

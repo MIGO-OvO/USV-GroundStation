@@ -393,6 +393,18 @@ export default function Diagnostics({
         )}
         <section className="freshness">
           <h2>遥测字段新鲜度</h2>
+          <p className="caption">
+            载荷心跳：
+            {s.telemetry.payload_heartbeat_ms == null
+              ? "未收到"
+              : `${((s.now_ms - s.telemetry.payload_heartbeat_ms) / 1000).toFixed(1)} s 前`}
+            {" · "}载荷遥测：
+            {s.telemetry.payload_telemetry_ms == null
+              ? "未收到"
+              : `${((s.now_ms - s.telemetry.payload_telemetry_ms) / 1000).toFixed(1)} s 前`}
+            {" · "}
+            {s.payload_online ? "载荷链路在线" : "载荷链路无新鲜证据"}
+          </p>
           <div className="freshness-grid">
             {Object.entries(s.telemetry.fields).map(([name, f]) => (
               <div key={name}>

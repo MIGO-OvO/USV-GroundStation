@@ -13,6 +13,7 @@ export interface Telemetry {
   component_id: number | null;
   heartbeat_ms: number | null;
   payload_heartbeat_ms: number | null;
+  payload_telemetry_ms: number | null;
   fields: Record<string, Field>;
   track: [number, number][];
   generation: number;

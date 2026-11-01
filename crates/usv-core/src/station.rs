@@ -1076,6 +1076,16 @@ impl Engine {
             self.lose_link(now, "飞控心跳超时");
         }
         let payload_online = self.telemetry.payload_online(now);
+        if self.was_payload_online != payload_online && self.telemetry.connected(now) {
+            self.log(
+                now,
+                if payload_online { "payload_link_restored" } else { "payload_link_lost" },
+                "local", None, None, None,
+                json!({"heartbeat_ms": self.telemetry.payload_heartbeat_ms,
+                    "telemetry_ms": self.telemetry.payload_telemetry_ms,
+                    "reason": if payload_online { "fresh_payload_evidence" } else { "no_payload_heartbeat_or_telemetry_for_5s" }}),
+            );
+        }
         if self.was_payload_online && !payload_online && self.telemetry.connected(now) {
             for r in self
                 .records
@@ -1089,7 +1099,7 @@ impl Engine {
                     now,
                     &self.clock_id,
                     "payload_offline",
-                    "载荷心跳超时，保留请求身份",
+                    "载荷心跳与遥测均超时，保留请求身份",
                 );
             }
             self.queue

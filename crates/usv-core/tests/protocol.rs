@@ -193,6 +193,40 @@ fn payload_heartbeat_cannot_select_flight_controller() {
     assert_eq!(t.system_id, Some(1));
 }
 #[test]
+fn forwarded_payload_telemetry_keeps_link_online_without_companion_heartbeat() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let id = send(&mut e, 31010, 100);
+    ingest_event(&mut e, &id, "request", "accepted", 1, 101);
+    e.tick(101);
+    // ArduRover forwards cached values under 1/1. A radio can lose the
+    // companion heartbeat independently of those live values.
+    for now in (600..=600_100).step_by(500) {
+        e.ingest(header(1), heartbeat(1), now);
+        e.ingest(
+            header(1),
+            MavMessage::NAMED_VALUE_FLOAT(NAMED_VALUE_FLOAT_DATA {
+                name: "USV_PROTO".into(),
+                value: 1.0,
+                ..Default::default()
+            })
+            .into(),
+            now,
+        );
+        e.tick(now);
+        assert!(e.snapshot(now).payload_online, "false outage at {now}");
+    }
+    assert!(!e.safety.outputs_unknown);
+    assert_eq!(e.records.last().unwrap().state, RequestState::Accepted);
+    // FCU/MAVROS traffic is not payload evidence. An actual outage still expires.
+    e.ingest(header(1), heartbeat(1), 605_101);
+    e.ingest(header(240), heartbeat(240), 605_101);
+    e.tick(605_101);
+    assert!(!e.snapshot(605_101).payload_online);
+    assert_eq!(e.records.last().unwrap().state, RequestState::Unknown);
+    assert!(!e.records.last().unwrap().retry_allowed);
+}
+#[test]
 fn telemetry_maps_all_26_fields_and_expires_separately() {
     let mut t = Telemetry::default();
     t.ingest(header(1), &heartbeat(1), 100, None);
@@ -211,7 +245,7 @@ fn telemetry_maps_all_26_fields_and_expires_separately() {
         assert_eq!(t.get(name, 200), Some(i as f64));
         assert_eq!(t.get(name, 3201), None);
     }
-    assert!(!t.payload_online(200));
+    assert!(t.payload_online(200));
     t.ingest(header(191), &heartbeat(191), 200, None);
     assert!(t.payload_online(200));
     assert!(!t.payload_online(5201));
@@ -234,6 +268,40 @@ fn foreign_system_named_values_cannot_update_target() {
         None,
     );
     assert_eq!(t.get("USV_PROTO", 100), None);
+}
+#[test]
+fn unrelated_or_invalid_values_do_not_keep_payload_alive() {
+    let mut t = Telemetry::default();
+    t.ingest(header(1), &heartbeat(1), 100, None);
+    for (system, component, name, value) in [
+        (2, 191, "USV_PROTO", 1.0),
+        (1, 240, "USV_PROTO", 1.0),
+        (1, 1, "USV_DONE", 42.0),
+        (1, 1, "USV_PROTO", f32::NAN),
+        (1, 191, "USV_VOLT", f32::INFINITY),
+    ] {
+        let mut h = header(component);
+        h.system_id = system;
+        t.ingest(
+            h,
+            &MavMessage::NAMED_VALUE_FLOAT(NAMED_VALUE_FLOAT_DATA {
+                name: name.into(),
+                value,
+                ..Default::default()
+            })
+            .into(),
+            100,
+            None,
+        );
+        assert!(!t.payload_online(100));
+    }
+    t.ingest(header(191), &heartbeat(191), 200, None);
+    assert!(t.payload_online(200));
+    assert_eq!(t.payload_telemetry_ms, None);
+    assert_eq!(t.get("USV_PROTO", 200), None);
+    t.reset_link();
+    assert!(!t.payload_online(200));
+    assert_eq!(t.payload_telemetry_ms, None);
 }
 #[test]
 fn session_allocation_is_durable_and_process_unique() {
