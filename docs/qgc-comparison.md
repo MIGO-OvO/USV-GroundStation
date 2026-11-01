@@ -5,7 +5,7 @@
 | 现有功能/入口 | 新项目 | 首版范围与证据 |
 |---|---|---|
 | Vehicle UDP/TCP/串口 | Rust transport / Station | UDP/TCP 真实回环测试，Windows 串口已编译，待电台验收 |
-| 识别飞控、191 载荷心跳 | telemetry | 单机 ArduRover/boat，源和目标过滤，心跳分别过期 |
+| 识别飞控、191 载荷心跳 | telemetry | 单机 ArduRover/boat；载荷心跳或有效转发遥测维持在线，字段独立过期 |
 | GPS、航迹、姿态、电池 | 驾驶舱 / MapView | 真实消息驱动，字段 TTL，未知不填示例值 |
 | 模式、解锁/上锁 | Rust flight requests | HOLD/AUTO/GUIDED/RTL，发送后状态确认 |
 | 推进急停与载荷停止 | SafetyState | 强制上锁及全 STOP 独立证据，保留现场确认入口 |
@@ -18,7 +18,7 @@
 | 42702 定点采样 | mission items | param1=1、1～255s，实船 `USV_SMPL/USV_DONE` 闭环待验收 |
 | AUTO 暂停/继续/停止 | 模式 + 载荷全 STOP | HOLD 暂停、AUTO 继续，停止保留飞控任务进度 |
 | QGC .plan 文件 | 独立 version=1 JSON | 只导入本项目草稿格式；不导入 QGC 通用复杂任务 |
-| 离线地图 | ROS 瓦片代理 + 本机缓存 | 缓存已浏览区域，离线读取有 HTTP fixture；不读取 Qt 瓦片数据库 |
+| 离线地图 | Google 直连 + Windows 本机定位 + 本机缓存 | 周边预缓存、PNG/JPEG、24h后台更新、离线读取；保留ROS，不读取Qt数据库 |
 | ROS 数据中心 | 原 Web API | 任务列表、样本、CSV/原始 CSV/ZIP；真实 Jetson 归档待联调 |
 | 通信日志 | Rust JSONL/ZIP、诊断 UI | request/session 时间线、重组/重试/过期、ROS 诊断，时钟域独立 |
 | Windows 桌面包 | Tauri / NSIS | 真实 x64 构建和 WebView2 IPC smoke |

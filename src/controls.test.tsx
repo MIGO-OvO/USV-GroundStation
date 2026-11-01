@@ -23,6 +23,22 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it("migrates the old ROS-only map setting to automatic local Google maps", () => {
+  localStorage.setItem(
+    "usv.preferences",
+    JSON.stringify({ mapEnabled: false, theme: "dark" }),
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
+  expect(screen.getByRole("checkbox", { name: "启用底图" })).toBeChecked();
+  expect(screen.getByRole("combobox", { name: "地图来源" })).toHaveValue(
+    "google",
+  );
+  expect(screen.getByRole("combobox", { name: "界面主题" })).toHaveValue(
+    "dark",
+  );
+});
+
 it("keeps physical controls disabled with no backend evidence", () => {
   render(<App />);
   expect(screen.getByRole("button", { name: "解锁" })).toBeDisabled();

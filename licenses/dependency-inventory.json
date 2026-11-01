@@ -523,6 +523,18 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "core-foundation",
+      "version": "0.9.4",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/core-foundation/0.9.4",
+      "upstream": "https://github.com/servo/core-foundation-rs",
+      "license_files": [
+        "cargo/core-foundation-0.9.4/LICENSE-APACHE",
+        "cargo/core-foundation-0.9.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "core-foundation-sys",
       "version": "0.8.7",
       "license": "MIT OR Apache-2.0",
@@ -2731,6 +2743,18 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "openssl-probe",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/openssl-probe/0.2.1",
+      "upstream": "https://github.com/rustls/openssl-probe",
+      "license_files": [
+        "cargo/openssl-probe-0.2.1/LICENSE-APACHE",
+        "cargo/openssl-probe-0.2.1/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "option-ext",
       "version": "0.2.0",
       "license": "MPL-2.0",
@@ -3367,6 +3391,20 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "rustls-native-certs",
+      "version": "0.8.4",
+      "license": "Apache-2.0 OR ISC OR MIT",
+      "source": "https://crates.io/crates/rustls-native-certs/0.8.4",
+      "upstream": "https://github.com/rustls/rustls-native-certs",
+      "license_files": [
+        "cargo/rustls-native-certs-0.8.4/LICENSE",
+        "cargo/rustls-native-certs-0.8.4/LICENSE-APACHE",
+        "cargo/rustls-native-certs-0.8.4/LICENSE-ISC",
+        "cargo/rustls-native-certs-0.8.4/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "rustls-pki-types",
       "version": "1.15.1",
       "license": "MIT OR Apache-2.0",
@@ -3426,6 +3464,17 @@
     },
     {
       "ecosystem": "cargo",
+      "name": "schannel",
+      "version": "0.1.29",
+      "license": "MIT",
+      "source": "https://crates.io/crates/schannel/0.1.29",
+      "upstream": "https://github.com/steffengy/schannel-rs",
+      "license_files": [
+        "cargo/schannel-0.1.29/LICENSE.md"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
       "name": "schemars",
       "version": "0.8.22",
       "license": "MIT",
@@ -3478,6 +3527,30 @@
       "license_files": [
         "cargo/scopeguard-1.2.0/LICENSE-APACHE",
         "cargo/scopeguard-1.2.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "security-framework",
+      "version": "3.7.0",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/security-framework/3.7.0",
+      "upstream": "https://github.com/kornelski/rust-security-framework",
+      "license_files": [
+        "cargo/security-framework-3.7.0/LICENSE-APACHE",
+        "cargo/security-framework-3.7.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "security-framework-sys",
+      "version": "2.17.0",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/security-framework-sys/2.17.0",
+      "upstream": "https://github.com/kornelski/rust-security-framework",
+      "license_files": [
+        "cargo/security-framework-sys-2.17.0/LICENSE-APACHE",
+        "cargo/security-framework-sys-2.17.0/LICENSE-MIT"
       ]
     },
     {
@@ -3973,6 +4046,30 @@
       "upstream": "https://github.com/mystor/synstructure",
       "license_files": [
         "cargo/synstructure-0.14.0/LICENSE"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-configuration",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/system-configuration/0.7.0",
+      "upstream": "https://github.com/mullvad/system-configuration-rs",
+      "license_files": [
+        "cargo/system-configuration-0.7.0/LICENSE-APACHE",
+        "cargo/system-configuration-0.7.0/LICENSE-MIT"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-configuration-sys",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/system-configuration-sys/0.6.0",
+      "upstream": "https://github.com/mullvad/system-configuration-rs",
+      "license_files": [
+        "cargo/system-configuration-sys-0.6.0/LICENSE-APACHE",
+        "cargo/system-configuration-sys-0.6.0/LICENSE-MIT"
       ]
     },
     {
@@ -4855,17 +4952,6 @@
     },
     {
       "ecosystem": "cargo",
-      "name": "webpki-roots",
-      "version": "1.0.11",
-      "license": "CDLA-Permissive-2.0",
-      "source": "https://crates.io/crates/webpki-roots/1.0.11",
-      "upstream": "https://github.com/rustls/webpki-roots",
-      "license_files": [
-        "cargo/webpki-roots-1.0.11/LICENSE"
-      ]
-    },
-    {
-      "ecosystem": "cargo",
       "name": "webview2-com",
       "version": "0.39.1",
       "license": "MIT",
@@ -5049,6 +5135,18 @@
       "license_files": [
         "cargo/windows-numerics-0.3.1/license-apache-2.0",
         "cargo/windows-numerics-0.3.1/license-mit"
+      ]
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-registry",
+      "version": "0.6.1",
+      "license": "MIT OR Apache-2.0",
+      "source": "https://crates.io/crates/windows-registry/0.6.1",
+      "upstream": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        "cargo/windows-registry-0.6.1/license-apache-2.0",
+        "cargo/windows-registry-0.6.1/license-mit"
       ]
     },
     {

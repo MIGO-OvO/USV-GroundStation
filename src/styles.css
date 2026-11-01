@@ -659,6 +659,14 @@ small {
   height: 42px;
   color: var(--info);
 }
+.local-position-marker {
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--panel);
+  border-radius: 50%;
+  background: var(--info);
+  outline: 1px solid var(--info);
+}
 .vessel-marker path {
   stroke: var(--panel);
 }

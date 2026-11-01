@@ -8,7 +8,7 @@ use std::{
 };
 use tauri::{Manager, State, ipc::Channel};
 use usv_core::{
-    maps::MapCache,
+    maps::{LocalPosition, MapCache},
     ros::RosClient,
     station::{Intent, Snapshot, Station},
 };
@@ -209,6 +209,7 @@ async fn save_text(
 async fn map_tile(
     state: State<'_, AppState>,
     base_url: String,
+    source: String,
     style: String,
     z: u8,
     x: u32,
@@ -216,7 +217,35 @@ async fn map_tile(
     offline: bool,
 ) -> Result<Vec<u8>, String> {
     let cache = state.maps.clone();
-    tauri::async_runtime::spawn_blocking(move || cache.tile(&base_url, &style, z, x, y, offline))
+    tauri::async_runtime::spawn_blocking(move || match source.as_str() {
+        "google" => cache.google_tile(&style, z, x, y, offline),
+        "ros" => cache.tile(&base_url, &style, z, x, y, offline),
+        _ => Err("地图来源无效".into()),
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn map_location(state: State<'_, AppState>, offline: bool) -> Result<LocalPosition, String> {
+    let cache = state.maps.clone();
+    cache.set_offline(offline);
+    tauri::async_runtime::spawn_blocking(move || cache.local_position(offline))
+        .await
+        .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+fn map_set_offline(state: State<'_, AppState>, offline: bool) {
+    state.maps.set_offline(offline);
+}
+#[tauri::command]
+async fn map_prefetch(
+    state: State<'_, AppState>,
+    style: String,
+    latitude: f64,
+    longitude: f64,
+) -> Result<usize, String> {
+    let cache = state.maps.clone();
+    tauri::async_runtime::spawn_blocking(move || cache.prefetch(&style, latitude, longitude))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -245,7 +274,9 @@ pub fn run() {
     );
     builder
         .setup(|app| {
-            let data = app.path().app_data_dir()?;
+            let data = std::env::var_os("USV_GROUNDSTATION_DATA_DIR")
+                .map(PathBuf::from)
+                .unwrap_or(app.path().app_data_dir()?);
             let station = Station::start(&data).map_err(std::io::Error::other)?;
             let maps = MapCache::new(&data.join("map-cache")).map_err(std::io::Error::other)?;
             #[cfg(target_os = "android")]
@@ -276,6 +307,9 @@ pub fn run() {
             export_diagnostics,
             save_text,
             map_tile,
+            map_location,
+            map_set_offline,
+            map_prefetch,
             map_stats
         ])
         .run(tauri::generate_context!())

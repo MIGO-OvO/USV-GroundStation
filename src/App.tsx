@@ -24,7 +24,7 @@ import type {
   Intent,
   SendIntent,
 } from "./types";
-import { useStation, native, object } from "./backend";
+import { useStation, native, object, call } from "./backend";
 import {
   field,
   modes,
@@ -52,15 +52,20 @@ type Workspace =
 const defaults: Preferences = {
   rosUrl: "http://127.0.0.1:5000",
   mapStyle: "gsatellite",
+  mapSource: "google",
   offline: false,
   theme: "light",
-  mapEnabled: false,
+  mapEnabled: true,
 };
 function loadPreferences(): Preferences {
   try {
+    const saved = JSON.parse(localStorage.getItem("usv.preferences") ?? "{}");
     return {
       ...defaults,
-      ...JSON.parse(localStorage.getItem("usv.preferences") ?? "{}"),
+      ...saved,
+      ...(saved.mapSource
+        ? {}
+        : { mapSource: "google", mapEnabled: true, mapStyle: "gsatellite" }),
     };
   } catch {
     return defaults;
@@ -379,6 +384,12 @@ export default function App() {
     localStorage.setItem("usv.preferences", JSON.stringify(preferences));
   }, [preferences]);
   useEffect(() => {
+    if (native)
+      void call("map_set_offline", { offline: preferences.offline }).catch(
+        (e) => setNotice({ text: String(e), error: true }),
+      );
+  }, [preferences.offline]);
+  useEffect(() => {
     localStorage.setItem("usv.mission", JSON.stringify(draft));
   }, [draft]);
   function notify(text: string, isError = false) {
@@ -636,7 +647,7 @@ export default function App() {
         <span>
           WGS 84
           <span className="footer-divider" />
-          v0.1.0
+          v0.1.1
         </span>
       </footer>
       {confirmation && (

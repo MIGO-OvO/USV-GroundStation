@@ -202,6 +202,7 @@ export type Intent =
 export interface Preferences {
   rosUrl: string;
   mapStyle: string;
+  mapSource: "google" | "ros";
   offline: boolean;
   theme: "light" | "dark";
   mapEnabled: boolean;

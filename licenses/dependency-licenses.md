@@ -48,6 +48,7 @@
 | cargo | combine | 4.6.9 | MIT | [源码](https://crates.io/crates/combine/4.6.9) |
 | cargo | cookie | 0.18.2 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/cookie/0.18.2) |
 | cargo | core-foundation | 0.10.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/core-foundation/0.10.1) |
+| cargo | core-foundation | 0.9.4 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/core-foundation/0.9.4) |
 | cargo | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/core-foundation-sys/0.8.7) |
 | cargo | core-graphics | 0.25.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/core-graphics/0.25.0) |
 | cargo | core-graphics-types | 0.2.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/core-graphics-types/0.2.0) |
@@ -234,6 +235,7 @@
 | cargo | objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT | [源码](https://crates.io/crates/objc2-user-notifications/0.3.2) |
 | cargo | objc2-web-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT | [源码](https://crates.io/crates/objc2-web-kit/0.3.2) |
 | cargo | once_cell | 1.21.4 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/once_cell/1.21.4) |
+| cargo | openssl-probe | 0.2.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/openssl-probe/0.2.1) |
 | cargo | option-ext | 0.2.0 | MPL-2.0 | [源码](https://crates.io/crates/option-ext/0.2.0) |
 | cargo | pango | 0.18.3 | MIT | [源码](https://crates.io/crates/pango/0.18.3) |
 | cargo | pango-sys | 0.18.0 | MIT | [源码](https://crates.io/crates/pango-sys/0.18.0) |
@@ -288,16 +290,20 @@
 | cargo | rustc_version | 0.4.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/rustc_version/0.4.1) |
 | cargo | rustix | 1.1.6 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | [源码](https://crates.io/crates/rustix/1.1.6) |
 | cargo | rustls | 0.23.46 | Apache-2.0 OR ISC OR MIT | [源码](https://crates.io/crates/rustls/0.23.46) |
+| cargo | rustls-native-certs | 0.8.4 | Apache-2.0 OR ISC OR MIT | [源码](https://crates.io/crates/rustls-native-certs/0.8.4) |
 | cargo | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/rustls-pki-types/1.15.1) |
 | cargo | rustls-webpki | 0.103.16 | ISC | [源码](https://crates.io/crates/rustls-webpki/0.103.16) |
 | cargo | rustversion | 1.0.23 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/rustversion/1.0.23) |
 | cargo | ryu | 1.0.23 | Apache-2.0 OR BSL-1.0 | [源码](https://crates.io/crates/ryu/1.0.23) |
 | cargo | same-file | 1.0.6 | Unlicense/MIT | [源码](https://crates.io/crates/same-file/1.0.6) |
+| cargo | schannel | 0.1.29 | MIT | [源码](https://crates.io/crates/schannel/0.1.29) |
 | cargo | schemars | 0.8.22 | MIT | [源码](https://crates.io/crates/schemars/0.8.22) |
 | cargo | schemars | 0.9.0 | MIT | [源码](https://crates.io/crates/schemars/0.9.0) |
 | cargo | schemars | 1.2.3 | MIT | [源码](https://crates.io/crates/schemars/1.2.3) |
 | cargo | schemars_derive | 0.8.22 | MIT | [源码](https://crates.io/crates/schemars_derive/0.8.22) |
 | cargo | scopeguard | 1.2.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/scopeguard/1.2.0) |
+| cargo | security-framework | 3.7.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/security-framework/3.7.0) |
+| cargo | security-framework-sys | 2.17.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/security-framework-sys/2.17.0) |
 | cargo | selectors | 0.38.0 | MPL-2.0 | [源码](https://crates.io/crates/selectors/0.38.0) |
 | cargo | semver | 1.0.28 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/semver/1.0.28) |
 | cargo | serde | 1.0.229 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/serde/1.0.229) |
@@ -340,6 +346,8 @@
 | cargo | syn | 3.0.9 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/syn/3.0.9) |
 | cargo | sync_wrapper | 1.0.2 | Apache-2.0 | [源码](https://crates.io/crates/sync_wrapper/1.0.2) |
 | cargo | synstructure | 0.14.0 | MIT | [源码](https://crates.io/crates/synstructure/0.14.0) |
+| cargo | system-configuration | 0.7.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/system-configuration/0.7.0) |
+| cargo | system-configuration-sys | 0.6.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/system-configuration-sys/0.6.0) |
 | cargo | system-deps | 6.2.2 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/system-deps/6.2.2) |
 | cargo | tao | 0.37.2 | Apache-2.0 | [源码](https://crates.io/crates/tao/0.37.2) |
 | cargo | tao-macros | 0.1.4 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/tao-macros/0.1.4) |
@@ -414,7 +422,6 @@
 | cargo | web_atoms | 0.2.6 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/web_atoms/0.2.6) |
 | cargo | webkit2gtk | 2.0.2 | MIT | [源码](https://crates.io/crates/webkit2gtk/2.0.2) |
 | cargo | webkit2gtk-sys | 2.0.2 | MIT | [源码](https://crates.io/crates/webkit2gtk-sys/2.0.2) |
-| cargo | webpki-roots | 1.0.11 | CDLA-Permissive-2.0 | [源码](https://crates.io/crates/webpki-roots/1.0.11) |
 | cargo | webview2-com | 0.39.1 | MIT | [源码](https://crates.io/crates/webview2-com/0.39.1) |
 | cargo | webview2-com-macros | 0.8.1 | MIT | [源码](https://crates.io/crates/webview2-com-macros/0.8.1) |
 | cargo | webview2-com-sys | 0.39.1 | MIT | [源码](https://crates.io/crates/webview2-com-sys/0.39.1) |
@@ -431,6 +438,7 @@
 | cargo | windows-interface | 0.59.3 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-interface/0.59.3) |
 | cargo | windows-link | 0.2.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-link/0.2.1) |
 | cargo | windows-numerics | 0.3.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-numerics/0.3.1) |
+| cargo | windows-registry | 0.6.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-registry/0.6.1) |
 | cargo | windows-result | 0.4.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-result/0.4.1) |
 | cargo | windows-strings | 0.5.1 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-strings/0.5.1) |
 | cargo | windows-sys | 0.45.0 | MIT OR Apache-2.0 | [源码](https://crates.io/crates/windows-sys/0.45.0) |

@@ -284,7 +284,7 @@ export default function Settings({
                   })
                 }
               />
-              启用 ROS 底图
+              启用底图
             </label>
             <label className="checkbox">
               <input
@@ -297,6 +297,23 @@ export default function Settings({
               仅使用本机离线缓存
             </label>
             <label>
+              地图来源
+              <select
+                value={preferences.mapSource}
+                onChange={(e) =>
+                  setPreferences({
+                    ...preferences,
+                    mapSource: e.target.value as Preferences["mapSource"],
+                    mapStyle:
+                      e.target.value === "google" ? "gsatellite" : "satellite",
+                  })
+                }
+              >
+                <option value="google">Google（本机直连）</option>
+                <option value="ros">ROS 地图服务</option>
+              </select>
+            </label>
+            <label>
               底图样式
               <select
                 value={preferences.mapStyle}
@@ -304,12 +321,21 @@ export default function Settings({
                   setPreferences({ ...preferences, mapStyle: e.target.value })
                 }
               >
-                {(Array.isArray(styles)
-                  ? styles.map(String)
-                  : ["gsatellite", "satellite", "normal"]
+                {(preferences.mapSource === "google"
+                  ? ["gsatellite", "gstreet", "ghybrid", "gterrain"]
+                  : Array.isArray(styles)
+                    ? styles.map(String)
+                    : ["gsatellite", "satellite", "normal"]
                 ).map((style) => (
                   <option key={style} value={style}>
-                    {style}
+                    {(
+                      {
+                        gsatellite: "卫星",
+                        gstreet: "街道",
+                        ghybrid: "卫星与标注",
+                        gterrain: "地形",
+                      } as Record<string, string>
+                    )[style] ?? style}
                   </option>
                 ))}
               </select>
@@ -329,8 +355,10 @@ export default function Settings({
             <p className="caption">本机瓦片：{JSON.stringify(mapStats)}</p>
           )}
           <p className="caption">
-            在线浏览过的 ROS PNG 瓦片自动保存到应用数据目录；ROS
-            服务同时保留其现有离线瓦片缓存。地图使用 WGS 84。
+            默认使用 Windows
+            本机定位，后台缓存附近地图；浏览区域自动保存到本机。 Google
+            底图每日检查更新，断网使用已有缓存。定位不可用时可拖动地图。地图使用
+            WGS 84。
           </p>
         </section>
         {configLoaded && (
@@ -380,7 +408,7 @@ export default function Settings({
           <dl className="settings-info">
             <div>
               <dt>版本</dt>
-              <dd>0.1.0</dd>
+              <dd>0.1.1</dd>
             </div>
             <div>
               <dt>控制核心</dt>

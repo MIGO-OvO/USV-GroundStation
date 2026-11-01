@@ -2,7 +2,7 @@
 
 ## 安装
 
-下载 Release 的 `USV GroundStation_0.1.0_x64-setup.exe`，核对同版本 SHA256 后安装。支持 Windows 10/11 x64，需要 Microsoft WebView2 Runtime。NSIS 安装器使用 Tauri 的 WebView2 引导安装；无网络的计算机应先安装微软离线 Runtime。
+下载 Release 的 `USV.GroundStation_0.1.1_x64-setup.exe`，核对同版本 SHA256 后安装。支持 Windows 10/11 x64，需要 Microsoft WebView2 Runtime。NSIS 安装器使用 Tauri 的 WebView2 引导安装；无网络的计算机应先安装微软离线 Runtime。
 
 首版没有 Windows 代码签名证书。系统可能显示未知发布者。项目不会改动飞控、Jetson 或检测板固件。
 
@@ -36,9 +36,15 @@
 
 ## 离线地图
 
-启用 ROS 底图后，在线浏览过的 PNG 瓦片自动保存到应用数据目录。启用“仅使用本机离线缓存”后不请求地图服务器。未缓存的区域显示缺失；出航前在线浏览所需区域和缩放级别，并断网复查。ROS 自己的离线缓存继续可用。
+默认启用 Google 本机直连，无需 ROS 地址。Windows 本机定位可用时自动居中，在后台缓存周边 z8/10/12/14/16/18 的 3×3 瓦片；单轮预缓存约 30 秒内停止发起新下载。地图浏览到的区域也自动保存。再次联网会重试定位和地图加载。
 
-首版没有导入 QGC 的 Qt 瓦片数据库，也没有区域批量下载器；旧缓存需经 ROS 地图服务访问后建立本机缓存。地图数据不随安装包分发，遵守各提供商缓存和署名要求。
+在 Windows“设置 → 隐私和安全性 → 位置”开启位置服务及桌面应用定位权限。无法定位时显示原因，保留上次视野并允许拖动地图。上次保存的本机位置带原接收时间，超过 15 分钟标为“上次本机位置”，与船载 GPS 标记区分。
+
+支持 Google 卫星、街道、卫星与标注、地形。PNG/JPEG 缓存按 Google 样式和 XYZ 分目录保存。已有瓦片立即显示，超过 24 小时在后台检查更新；更新失败保留旧瓦片。网络请求使用系统代理、SOCKS 和系统信任的 TLS 证书。
+
+启用“仅使用本机离线缓存”后不发起地图下载、更新或预缓存。未缓存的区域显示缺失；出航前检查所需区域和缩放级别，并断网复查。“地图来源”可切回 ROS，继续访问旧版缓存和 ROS 地图服务。
+
+应用不导入 QGC 的 Qt 瓦片数据库。Google 请求参数参考 QGC 当前 Google provider，使用未固定影像版本的 lyrs 参数。地图数据不随安装包分发，保留提供商署名。
 
 ## 文件位置与诊断
 
@@ -67,3 +73,5 @@ node tools/native-smoke.mjs
 构建产物在 `target/release/` 和 `target/release/bundle/nsis/`。`ensure-webview2.ps1` 检查 Runtime，缺失时下载并校验微软签名的官方安装器。`native-smoke.mjs` 启动真实 WebView2，读取 IPC、切换页面并截图，不建立设备连接。它是开发检查工具，默认程序不会打开 CDP 端口。
 
 本机检查使用普通权限终端。GitHub Actions 的管理员 runner 由 `ci-native-smoke.ps1` 临时设置本程序的 HKLM WebView2 调试参数并在结束时恢复；WebView2 150 起会忽略管理员进程环境变量中的浏览器参数。该脚本仅用于 Actions。
+
+原生 smoke 使用 `.reference/native-smoke-*` 独立数据目录及 WebView2 profile，避免读写正在运行程序的请求数据库和界面设置。开发环境可用 `USV_GROUNDSTATION_DATA_DIR` 指定隔离的数据目录。设置 `USV_NATIVE_ONLINE_MAP=1` 后，smoke 另检查真实 Google 下载与离线字节一致性；CI 默认不把外部 Google 可达性作为门禁。

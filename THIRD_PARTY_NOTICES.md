@@ -18,6 +18,7 @@ QGC、ROS、ArduPilot 与检测板源码用于核查现有协议和行为。项�
 | reqwest / Tokio / serde / serde_json | MIT 或 Apache-2.0 |
 | zip / uuid / sha2 | 见锁文件中的各版本许可表达式 |
 | serialport | MPL-2.0 |
+| windows / windows-rs | MIT 或 Apache-2.0 |
 
 完整版本清单和上游许可证文件由 `tools/third-party.py` 生成，随 Release 提供 `dependency-inventory.json`、`dependency-licenses.md` 和 `third-party-licenses.zip`。清单包括构建、测试和可选平台依赖，范围大于单个安装包。Cargo/npm 锁文件是版本依据。
 
@@ -27,6 +28,6 @@ MPL-2.0 依赖（如 serialport、cssparser、selectors）的原始源码可从�
 
 ## 地图与字体
 
-底图由现有 ROS 地图服务提供。应用不内置 Google、卫星、OSM 等地图影像。用户应遵守实际提供商使用、下载、离线缓存与署名条款，应用保留 MapLibre attribution 区域。已有本机瓦片不授予再分发权。
+底图默认由 Google vt 服务提供，也可选择现有 ROS 地图代理。Google URL、XYZ 和图层参数参考 QGC 当前 provider 的网络行为，使用独立 Rust 实现。应用不内置地图影像，保留 MapLibre attribution 区域。地图使用和本机缓存遵守实际提供商条款，已有缓存不授予再分发权。
 
 界面附带 Inter Variable，采用 SIL Open Font License 1.1，版权属于 The Inter Project Authors。字体及许可证来自 rsms/inter 提交 `353b61b9f4430d5f420d56605a6e7993e0941470` 的 `docs/font-files/InterVariable.woff2` 和 `LICENSE.txt`；安装包保留 `licenses/Inter-OFL.txt`。中文使用系统 Microsoft YaHei UI，回退到 Segoe UI。原创应用图标源文件位于 assets/app-icon.svg。

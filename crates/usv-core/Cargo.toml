@@ -19,13 +19,14 @@ num-traits = "0.2"
 num-derive = "0.4"
 bitflags = { version = "2", features = ["serde"] }
 rusqlite = { version = "0.38", features = ["bundled"] }
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls-native-roots", "system-proxy", "socks"] }
 zip = { version = "4", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 serialport = { version = "4", default-features = false }
+windows = { version = "0.62", features = ["Devices_Geolocation", "Foundation", "Win32_System_WinRT"] }
 
 [build-dependencies]
 mavlink-bindgen = { version = "0.21", features = ["serde", "mav2-message-extensions"] }

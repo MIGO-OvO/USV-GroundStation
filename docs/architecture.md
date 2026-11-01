@@ -24,7 +24,7 @@ flowchart LR
 |---|---|
 | `wire` | rust-mavlink 标准消息、原始 u16 command 扩展、CRC、TCP 流解码 |
 | `transport` | 非阻塞 TCP/UDP，Windows 串口 |
-| `telemetry` | ArduRover 识别、独立心跳、字段与轨迹 |
+| `telemetry` | ArduRover 识别、独立心跳/载荷遥测接收时间、字段与轨迹 |
 | `identity` | SQLite FULL 同步、事务 session 分配、请求与保护状态 |
 | `payload` | 请求生命周期、重传条件、USVE1、STATUSTEXT 重组 |
 | `mission` | home 占位、42702、任务收发、重试和回读比较 |
@@ -49,6 +49,6 @@ HTTP 请求在 Tauri blocking pool 中运行，不占用 MAVLink actor。地图�
 
 ## 数据和资源
 
-通信日志最多保留四个约 10 MiB JSONL 文件；UI 内存记录最多 2000 条，快照显示最近 160 条。轨迹最多 10000 点，曲线最多 1200 点。地图缓存按服务 origin 的 SHA256、style、z/x/y 分目录，缓存缺失明确返回错误。
+通信日志最多保留四个约 10 MiB JSONL 文件；UI 内存记录最多 2000 条，快照显示最近 160 条。轨迹最多 10000 点，曲线最多 1200 点。ROS 地图缓存按服务 origin 的 SHA256、style、z/x/y 分目录；Google 按独立 provider、style、z/x/y 保存 PNG/JPEG。Google 旧缓存立即返回，后台去重刷新；下载失败保留旧文件。定位、预缓存和 HTTP 工作与控制线程分离。
 
 未实现通用插件、消息总线、多机控制、完整参数编辑或固件升级。

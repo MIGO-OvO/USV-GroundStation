@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 
@@ -11,7 +11,12 @@ await new Promise(r => reservation.listen(Number(process.env.USV_NATIVE_CDP_PORT
 const port = reservation.address().port;
 await new Promise(r => reservation.close(r));
 const binary = resolve(process.argv[2] || 'target/release/usv-groundstation.exe');
-const app = spawn(binary, [], { windowsHide: true, env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
+await mkdir('.reference', { recursive: true });
+const profile = await mkdtemp(resolve('.reference/native-smoke-'));
+const app = spawn(binary, [], { windowsHide: true, env: { ...process.env,
+  USV_GROUNDSTATION_DATA_DIR: profile,
+  WEBVIEW2_USER_DATA_FOLDER: resolve(profile, 'webview'),
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: 'pipe' });
 let processError;
 let processExit;
 let processOutput = '';
@@ -54,13 +59,25 @@ try {
   assert.equal(snapshot.telemetry.system_id, null);
   assert.equal(snapshot.identity_error, null);
   assert.equal(snapshot.log_error, null);
+  let mapEvidence = 'not requested';
+  if (process.env.USV_NATIVE_ONLINE_MAP === '1') {
+    const tile = { source: 'google', baseUrl: '', style: 'gsatellite', z: 0, x: 0, y: 0, offline: false };
+    const [online, offline] = await page.evaluate(async args => {
+      const online = await window.__TAURI_INTERNALS__.invoke('map_tile', args);
+      const offline = await window.__TAURI_INTERNALS__.invoke('map_tile', { ...args, offline: true });
+      return [online, offline];
+    }, tile);
+    assert(online.length > 100);
+    assert.deepEqual(online, offline);
+    mapEvidence = `${online.length} real Google bytes; cached bytes identical`;
+  }
   await mkdir('.impeccable/review', { recursive: true });
   await page.screenshot({ path: '.impeccable/review/windows-native.png', fullPage: true });
   await page.getByRole('button', { name: '连接与设置' }).click();
   assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
   await page.getByRole('button', { name: '诊断', exact: true }).click();
   assert.equal(await page.getByRole('heading', { name: '通信诊断' }).isVisible(), true);
-  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, screenshot: '.impeccable/review/windows-native.png' }));
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, mapEvidence, screenshot: '.impeccable/review/windows-native.png' }));
 } finally {
   if (browser) await browser.close();
   if (app.pid) app.kill();
