@@ -28,6 +28,7 @@ pub enum Intent {
         target_system: Option<u8>,
     },
     Disconnect,
+    RefreshPayload,
     Payload {
         command: u16,
         #[serde(default)]
@@ -131,6 +132,7 @@ enum Tag {
     Flight(String),
     Mission,
     Heartbeat,
+    PayloadRead,
     Setup(u32),
 }
 struct Packet {
@@ -169,6 +171,9 @@ pub struct Engine {
     error: Option<String>,
     full_stop_basis: Option<(String, u64)>,
     streams_requested: bool,
+    last_payload_read: Option<u64>,
+    payload_link_recovery_requested: bool,
+    payload_read_cursor: usize,
 }
 impl Engine {
     pub fn new(directory: &Path) -> Self {
@@ -248,6 +253,9 @@ impl Engine {
             error: None,
             full_stop_basis: None,
             streams_requested: false,
+            last_payload_read: None,
+            payload_link_recovery_requested: false,
+            payload_read_cursor: 0,
         };
         if engine.config.is_some() {
             engine.log(0, "connection_restored", "local", None, None, None,
@@ -431,6 +439,80 @@ impl Engine {
         }
         Ok(())
     }
+    fn request_payload_state(&mut self, now: u64) -> Result<()> {
+        if !self.telemetry.connected(now) {
+            return Err("等待飞控心跳后重读载荷状态".into());
+        }
+        if self
+            .last_payload_read
+            .is_some_and(|at| now.saturating_sub(at) < 2000)
+        {
+            return Ok(());
+        }
+        let system = self.telemetry.system_id.ok_or("飞控未识别")?;
+        // A missing result must not monopolise recovery for every older request.
+        let index = (0..self.records.len())
+            .map(|offset| (self.payload_read_cursor + offset) % self.records.len())
+            .find(|&index| {
+                let r = &self.records[index];
+                !r.retired && r.state == RequestState::Unknown
+            })
+            .or_else(|| self.records.iter().rposition(|r| !r.retired));
+        let unresolved = index.map(|index| &self.records[index]);
+        let (session, request, command) =
+            unresolved.map_or((0, 0, 0), |r| (r.session, r.request, r.command));
+        let request_id = unresolved.map(|r| r.id.clone());
+        let missing_fields = ["USV_STAT", "USV_PROTO", "USV_ADS"]
+            .into_iter()
+            .filter(|name| self.telemetry.get(name, now).is_none())
+            .collect::<Vec<_>>();
+        // A component broadcast can still reach ROS when the FCU/router has
+        // lost its component-191 route. This fallback is for read-only 512.
+        let target_component = if self.last_payload_read.is_some() && !missing_fields.is_empty() {
+            0
+        } else {
+            191
+        };
+        self.enqueue(
+            wire::command_long(
+                system,
+                target_component,
+                512,
+                [
+                    251.0,
+                    session as f32,
+                    request as f32,
+                    command as f32,
+                    if self.payload_link_recovery_requested {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                    0.0,
+                    0.0,
+                ],
+                0,
+            ),
+            Tag::PayloadRead,
+            now,
+            false,
+        )?;
+        self.last_payload_read = Some(now);
+        self.payload_read_cursor = index.map_or(0, |index| index + 1);
+        self.log(
+            now,
+            "payload_state_read",
+            "local",
+            None,
+            None,
+            None,
+            json!({"target":[system,target_component],"message_id":251,
+                "recover_request_id":request_id,"missing_fields":missing_fields,
+                "link_recovery_requested":self.payload_link_recovery_requested}),
+        );
+        self.payload_link_recovery_requested = false;
+        Ok(())
+    }
     fn create_payload(&mut self, command: u16, params: [f32; 2], now: u64) -> Result<String> {
         self.payload_gate(command, now)?;
         if params.iter().any(|v| !v.is_finite()) {
@@ -610,6 +692,14 @@ impl Engine {
                 self.lose_link(now, "操作员断开连接");
                 self.config = None;
                 Ok(json!({"disconnected":true}))
+            }
+            Intent::RefreshPayload => {
+                if !self.telemetry.connected(now) {
+                    return Err("等待飞控心跳后重读载荷状态".into());
+                }
+                self.payload_link_recovery_requested = true;
+                self.request_payload_state(now)?;
+                Ok(json!({"reading":true}))
             }
             Intent::Payload {
                 command,
@@ -1061,6 +1151,9 @@ impl Engine {
         self.assembler.clear();
         self.full_stop_basis = None;
         self.streams_requested = false;
+        self.last_payload_read = None;
+        self.payload_link_recovery_requested = false;
+        self.payload_read_cursor = 0;
         for r in self.records.iter_mut().filter(|r| !r.retired) {
             r.retry_allowed = false;
             if payload::task_command(r.command) || !r.receipt {
@@ -1140,6 +1233,19 @@ impl Engine {
         }
         self.was_connected = self.telemetry.connected(now);
         self.was_payload_online = payload_online;
+        if self.telemetry.connected(now)
+            && (self.payload_link_recovery_requested
+                || !payload_online
+                || ["USV_STAT", "USV_PROTO", "USV_ADS"]
+                    .iter()
+                    .any(|name| self.telemetry.get(name, now).is_none())
+                || self
+                    .records
+                    .iter()
+                    .any(|r| !r.retired && r.state == RequestState::Unknown))
+        {
+            let _ = self.request_payload_state(now);
+        }
         for r in self
             .records
             .iter_mut()

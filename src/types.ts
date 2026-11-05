@@ -191,6 +191,7 @@ export interface Snapshot {
 export type Intent =
   | { type: "connect"; config: ConnectionConfig; target_system: number | null }
   | { type: "disconnect" }
+  | { type: "refresh_payload" }
   | {
       type: "payload";
       command: number;

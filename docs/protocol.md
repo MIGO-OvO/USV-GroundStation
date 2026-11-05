@@ -10,6 +10,33 @@
 
 标准消息委托 rust-mavlink。COMMAND_LONG、COMMAND_INT、COMMAND_ACK 使用独立生成的字段布局，将 command 保存为 u16，以支持 31010 至 31019。三个标准 CRC extra 分别为 152、158、143；没有不安全枚举转换。首版不配置 MAVLink signing，签名帧因未验证被拒绝。
 
+## 状态读取与恢复
+
+Jetson bridge 每秒发送一次 component 191 HEARTBEAT，每秒发送两轮载荷遥测。飞控缓存字段 3 秒，以 2 Hz 向活跃地面站链路转发；原始 NAMED_VALUE_FLOAT 不直接路由，转发后的来源为飞控 component 1。空闲时仍持续发送，字段值相同也刷新地面站接收时间。
+
+飞控在线时，载荷离线、USV_STAT/USV_PROTO/USV_ADS 缺失或过期，或存在未知请求，都会触发自动重读，间隔至少 2 秒，同类请求在发送队列中去重。“采样与实时数据”页的“重读状态”按钮使用相同路径，输出未知时也可读取。
+
+重读使用发往选定 sysid/component 191 的 COMMAND_LONG 512（MAV_CMD_REQUEST_MESSAGE）。由 Jetson bridge 处理，飞控只负责路由：
+
+定向读取后，USV_STAT/USV_PROTO/USV_ADS 仍有缺失或过期时，下一次读取改用同 sysid/component 0 的广播，绕过失效的 191 定向路由；间隔仍至少 2 秒。关键字段恢复后再次使用 191。广播只用于只读 512，物理操作继续使用原目标和身份规则。飞控对广播查询产生的普通 ACK 不构成载荷恢复证据。
+
+| 参数 | 含义 |
+|---|---|
+| param1 | 251，读取新鲜 NAMED_VALUE_FLOAT 快照 |
+| param2 / param3 / param4 | 待恢复原请求的 session / request / command；没有未结束请求时均为 0 |
+| param5 | 手动“重读状态”为 1，请求恢复断开的 MAVROS；周期读取为 0 |
+| param6 / param7 | 0；param7 保持标准 Response Target 默认值 |
+
+Jetson 在本轮常规遥测中回复仍有效的源字段；查询不会延长源字段有效期。指定的历史结果还必须匹配查询方 sys/comp、原 executor 和请求参数，再经 recover_only 查询原 ledger。标准 ACK 512 只说明查询被接收，地面站继续等待新遥测和关联 USVE1。
+
+手动读取的 param5=1 由 bridge 转交 `/usv/link_recovery/request`。MAVROS 已连接时不重启；断开时由独立恢复节点按退避期限重启 MAVROS。该标记只恢复通信，不启动采样、分光或泵控。手动读取若遇到 2 秒限频，标记保留到下一次读取，发送后清除。旧 bridge 忽略该标记，读取行为保持兼容；需要同步更新 ROS 和地面站才能通过数传发起恢复。
+
+已收到过飞控证据的 Jetson bridge，若连续 10 秒收不到飞控心跳及受支持遥测，会退役 TCP 会话，并按现有 2 秒退避重连。原会话的停止保护继续生效，结果恢复保留原请求身份。未接入过飞控的独立 Web/实验室会话不启用此超时。ROS 状态源时间戳过期、晚于当前时钟或早于已接收状态时，bridge 丢弃该条回调。
+
+bridge 还检查发送方向：尝试发送后连续 10 秒没有完成任何帧写入，或每 5 秒发出的 TIMESYNC 探测在 15 秒内没有收到选定飞控回显的当前标识，都会退役并重建 TCP。TIMESYNC 只确认往返，不设置时钟；单调时钟调度避免校时卡住通信循环。roslaunch 在 bridge 退出后以 2 秒间隔重启该节点。重连只恢复通信，原任务仍按关联结果和停止保护处理。
+
+完整重读能力需要同步更新地面站与 Jetson bridge。旧 bridge 会忽略该查询；现有飞控固件无需增加 NAMED_VALUE_FLOAT 的流订阅功能。
+
 ## 载荷命令
 
 目标为选定 sysid/component 191。`param1/2` 保留原命令业务参数，`param3=request`、`param4=session`，均为 1 至 16777215 的整数。

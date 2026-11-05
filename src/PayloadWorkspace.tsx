@@ -348,12 +348,18 @@ export default function PayloadWorkspace({
               : "载荷未连接"}
           </p>
         </div>
-        <span
+        <button
+          type="button"
           className={`connection-indicator ${s.payload_online ? "online" : ""}`}
+          disabled={s.link !== "connected"}
+          onClick={() => void send({ type: "refresh_payload" })}
+          title="通过飞控重新读取 Jetson 载荷状态"
         >
           <span />
           {s.payload_online ? "载荷在线" : "载荷离线"}
-        </span>
+          <RefreshCw size={14} />
+          重读状态
+        </button>
       </header>
       <div className="sampling-scroll">
         <div className="sampling-top">
