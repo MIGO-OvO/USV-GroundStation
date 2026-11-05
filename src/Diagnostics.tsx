@@ -17,6 +17,7 @@ import type {
 import { commands, requestLabel, time } from "./format";
 import { call, useRos, unpack, object, native } from "./backend";
 import { Empty } from "./ui";
+import { useRosTransport } from "./rosAccess";
 
 export function Timeline({
   r,
@@ -136,6 +137,7 @@ export default function Diagnostics({
   notify: Notify;
 }) {
   const [tab, setTab] = useState<"local" | "jetson">("local");
+  const transport = useRosTransport();
   const [filter, setFilter] = useState("");
   const [errors, setErrors] = useState(false);
   const [direction, setDirection] = useState("all");
@@ -345,7 +347,7 @@ export default function Diagnostics({
         ) : (
           <div className="jetson-diagnostics">
             <div className="section-heading">
-              <h2>{preferences.rosUrl}</h2>
+              <h2>{transport === "mavlink" ? "MAVLink 数传 · 读取完成后每 30 秒更新" : preferences.rosUrl}</h2>
               <button
                 onClick={() => {
                   link.refresh();

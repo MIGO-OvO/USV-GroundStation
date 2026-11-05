@@ -8,6 +8,7 @@ import type {
   Notify,
 } from "./types";
 import { call, useRos, unpack, native, android, object } from "./backend";
+import RosControls from "./RosControls";
 
 export default function Settings({
   s,
@@ -313,6 +314,7 @@ export default function Settings({
             </button>
           </div>
         </section>
+        <RosControls s={s} baseUrl={preferences.rosUrl} notify={notify} />
         <section>
           <h2>
             <Map size={19} />

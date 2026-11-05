@@ -4,6 +4,7 @@ use crate::{
     identity::IdentityStore,
     mission::{MissionDraft, MissionManager, MissionSnapshot},
     payload::{self, PayloadEvent, Reassembler, RequestRecord, RequestState},
+    ros_radio,
     telemetry::Telemetry,
     transport::{ConnectionConfig, SavedConnection, Transport},
     wire::{self, WireMessage, standard::*},
@@ -128,6 +129,7 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Tag {
+    RosRadio,
     Payload(String),
     Flight(String),
     Mission,
@@ -146,6 +148,7 @@ struct Packet {
 /// The worker owns this object and every socket. Tests drive the same engine
 /// with a deterministic clock and byte transport fixtures.
 pub struct Engine {
+    ros_radio: ros_radio::Client,
     pub telemetry: Telemetry,
     pub records: Vec<RequestRecord>,
     pub safety: SafetyState,
@@ -225,6 +228,7 @@ impl Engine {
             safety.stop_request = None;
         }
         let mut engine = Self {
+            ros_radio: ros_radio::Client::default(),
             telemetry: Telemetry {
                 generation,
                 ..Default::default()
@@ -257,6 +261,15 @@ impl Engine {
             payload_link_recovery_requested: false,
             payload_read_cursor: 0,
         };
+        if let Some(store) = &engine.store {
+            match store.meta::<bool>("ros_radio_inflight") {
+                Ok(true) => {
+                    engine.safety.outputs_unknown = true;
+                }
+                Ok(_) => {}
+                Err(e) => engine.identity_error = Some(e),
+            }
+        }
         if engine.config.is_some() {
             engine.log(0, "connection_restored", "local", None, None, None,
                 json!({"connection":engine.saved_connection,"recovery":"observe_only_no_start_replay"}));
@@ -275,8 +288,12 @@ impl Engine {
         header: Option<MavHeader>,
         message: Option<&WireMessage>,
         request: Option<&RequestRecord>,
-        detail: serde_json::Value,
+        mut detail: serde_json::Value,
     ) {
+        if matches!(message, Some(WireMessage::Standard(MavMessage::V2_EXTENSION(data))) if data.message_type == ros_radio::MESSAGE_TYPE)
+        {
+            detail = json!({"name":"V2_EXTENSION","ros_radio":"content_redacted"});
+        }
         self.journal.append(Diagnostic {
             index: 0,
             unix_ms: unix_ms(),
@@ -300,6 +317,84 @@ impl Engine {
             if let Err(e) = result {
                 self.identity_error = Some(e);
             }
+        }
+    }
+    fn request_ros_radio(
+        &mut self,
+        request: ros_radio::Request,
+        confirmed: bool,
+        reply: mpsc::Sender<Result<serde_json::Value>>,
+        now: u64,
+    ) {
+        let result = (|| {
+            request.validate()?;
+            if !self.telemetry.connected(now) {
+                return Err("请先连接数传并等待飞控心跳".into());
+            }
+            if request.physical() {
+                if !confirmed {
+                    return Err("请确认设备操作".into());
+                }
+                if self.safety.emergency_latched
+                    || self.safety.outputs_unknown
+                    || self.identity_error.is_some()
+                {
+                    return Err("停止保护尚未解除，暂不能操作设备".into());
+                }
+                self.store
+                    .as_ref()
+                    .ok_or("身份存储不可用")?
+                    .set_meta("ros_radio_inflight", &true)?;
+            }
+            if request.stop() {
+                if let Some(store) = &self.store
+                    && let Err(error) = store.set_meta("ros_radio_inflight", &true)
+                {
+                    self.identity_error = Some(error);
+                }
+                self.queue
+                    .retain(|p| p.offset > 0 || p.tag != Tag::RosRadio);
+            }
+            self.ros_radio.submit(request, reply.clone(), now)
+        })();
+        if let Err(error) = result {
+            let _ = reply.send(Err(error));
+            self.persist();
+            if let Some(store) = &self.store
+                && let Err(e) =
+                    store.set_meta("ros_radio_inflight", &self.ros_radio.outputs_pending())
+            {
+                self.identity_error = Some(e);
+            }
+        }
+        self.finish_ros_radio(now);
+    }
+    fn finish_ros_radio(&mut self, now: u64) {
+        let completed = std::mem::take(&mut self.ros_radio.completed);
+        if completed.is_empty() {
+            return;
+        }
+        self.queue
+            .retain(|p| p.offset > 0 || p.tag != Tag::RosRadio);
+        for result in completed {
+            if result.outputs && result.uncertain {
+                self.safety.outputs_unknown = true;
+            }
+            self.log(
+                now,
+                "ros_radio_result",
+                "local",
+                None,
+                None,
+                None,
+                json!({"path":result.path,"uncertain":result.uncertain}),
+            );
+        }
+        self.persist();
+        if let Some(store) = &self.store
+            && let Err(e) = store.set_meta("ros_radio_inflight", &self.ros_radio.outputs_pending())
+        {
+            self.identity_error = Some(e);
         }
     }
     pub fn payload_gate(&self, c: u16, now: u64) -> Result<()> {
@@ -647,6 +742,17 @@ impl Engine {
         Ok(id)
     }
     pub fn intent(&mut self, intent: Intent, now: u64) -> Result<serde_json::Value> {
+        if matches!(
+            &intent,
+            Intent::EmergencyStop { confirmed: true }
+                | Intent::Payload {
+                    command: 31011 | 31016 | 31019,
+                    ..
+                }
+        ) {
+            self.ros_radio.cancel("已由停止操作取消");
+            self.finish_ros_radio(now);
+        }
         self.log(
             now,
             "ui_intent",
@@ -876,6 +982,15 @@ impl Engine {
             .ingest(header, &message, now, self.requested_system);
         if self.telemetry.system_id.map(u32::from) != Some(header.system_id) {
             return;
+        }
+        if let WireMessage::Standard(MavMessage::V2_EXTENSION(data)) = &message
+            && header.component_id == 191
+            && data.message_type == ros_radio::MESSAGE_TYPE
+            && data.target_system == SENDER.0
+            && data.target_component == SENDER.1
+        {
+            self.ros_radio.ingest(&data.payload, now);
+            self.finish_ros_radio(now);
         }
         if !self.streams_requested && self.telemetry.connected(now) {
             self.streams_requested = true;
@@ -1145,6 +1260,8 @@ impl Engine {
         }
     }
     pub fn lose_link(&mut self, now: u64, reason: &str) {
+        self.ros_radio.disconnected();
+        self.finish_ros_radio(now);
         self.transport = None;
         self.queue.clear();
         self.decoder.clear();
@@ -1200,6 +1317,15 @@ impl Engine {
         if self.was_connected && !self.telemetry.connected(now) {
             self.lose_link(now, "飞控心跳超时");
         }
+        if self.telemetry.connected(now)
+            && !self.queue.iter().any(|p| p.tag == Tag::RosRadio)
+            && let Some((frame, priority)) = self.ros_radio.next(now)
+            && let Some(target) = self.telemetry.system_id
+            && let Ok(message) = frame.message(target)
+        {
+            let _ = self.enqueue(message, Tag::RosRadio, now, priority);
+        }
+        self.finish_ros_radio(now);
         let payload_online = self.telemetry.payload_online(now);
         if self.was_payload_online != payload_online && self.telemetry.connected(now) {
             self.log(
@@ -1574,6 +1700,11 @@ impl Engine {
 }
 
 enum Operation {
+    RosRadio(
+        ros_radio::Request,
+        bool,
+        mpsc::Sender<Result<serde_json::Value>>,
+    ),
     Intent(Intent, mpsc::Sender<Result<serde_json::Value>>),
     Export(Option<serde_json::Value>, mpsc::Sender<Result<Vec<u8>>>),
 }
@@ -1598,6 +1729,9 @@ impl Station {
                     let now = started.elapsed().as_millis() as u64;
                     for _ in 0..16 {
                         match receiver.try_recv() {
+                            Ok(Operation::RosRadio(request, confirmed, reply)) => {
+                                engine.request_ros_radio(request, confirmed, reply, now);
+                            }
                             Ok(Operation::Intent(intent, reply)) => {
                                 let result = engine.intent(intent, now);
                                 if let Err(e) = &result {
@@ -1650,6 +1784,18 @@ impl Station {
             .send(Operation::Intent(intent, tx))
             .map_err(|e| e.to_string())?;
         rx.recv_timeout(Duration::from_secs(5))
+            .map_err(|e| e.to_string())?
+    }
+    pub fn ros_control(
+        &self,
+        request: ros_radio::Request,
+        confirmed: bool,
+    ) -> Result<serde_json::Value> {
+        let (tx, rx) = mpsc::channel();
+        self.sender
+            .send(Operation::RosRadio(request, confirmed, tx))
+            .map_err(|e| e.to_string())?;
+        rx.recv_timeout(Duration::from_millis(ros_radio::TIMEOUT_MS + 5000))
             .map_err(|e| e.to_string())?
     }
     pub fn export(&self, ros: Option<serde_json::Value>) -> Result<Vec<u8>> {

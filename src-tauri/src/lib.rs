@@ -103,6 +103,37 @@ fn station_unsubscribe(state: State<'_, AppState>, id: u64) -> Result<(), String
 }
 
 #[tauri::command]
+async fn ros_control(
+    state: State<'_, AppState>,
+    base_url: String,
+    transport: String,
+    request: usv_core::ros_radio::Request,
+    confirmed: bool,
+) -> Result<serde_json::Value, String> {
+    let station = state.station.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        request.validate()?;
+        if transport == "mavlink" {
+            return station.ros_control(request, confirmed);
+        }
+        if transport != "http" {
+            return Err("ROS 通信方式无效".into());
+        }
+        if request.physical() {
+            if !confirmed {
+                return Err("请确认设备操作".into());
+            }
+            let snapshot = station.snapshot()?;
+            if snapshot.safety.emergency_latched || snapshot.safety.outputs_unknown {
+                return Err("停止保护尚未解除，暂不能操作设备".into());
+            }
+        }
+        RosClient::new(&base_url)?.control(&request)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
 async fn ros_get(base_url: String, path: String) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || RosClient::new(&base_url)?.get(&path))
         .await
@@ -301,6 +332,7 @@ pub fn run() {
             station_subscribe,
             station_unsubscribe,
             ros_get,
+            ros_control,
             ros_post,
             ros_download,
             export_diagnostics,

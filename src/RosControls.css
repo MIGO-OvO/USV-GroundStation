@@ -1,0 +1,47 @@
+.ros-controls {
+  min-width: 0;
+}
+.ros-controls h3 {
+  margin: 1.5rem 0 0.75rem;
+}
+.ros-controls .inline-form {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+.ros-controls label {
+  min-width: 0;
+  max-width: 100%;
+}
+.ros-controls .inline-form > .checkbox {
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+  width: auto;
+}
+.ros-controls input[type="number"] {
+  width: 8rem;
+}
+.ros-controls .json-editor {
+  width: 100%;
+  min-height: 12rem;
+  box-sizing: border-box;
+  margin-top: 1rem;
+}
+.ros-control-report {
+  max-height: 28rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+@media (max-width: 600px) {
+  .ros-controls .inline-form > label {
+    width: 100%;
+  }
+  .ros-controls input:not([type="checkbox"]),
+  .ros-controls select {
+    max-width: 100%;
+    width: 100%;
+  }
+}

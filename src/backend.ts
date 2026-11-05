@@ -1,6 +1,7 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import type { Snapshot, Intent } from "./types";
+import { routeRosCall, rosTransportEvent, rosPollInterval } from "./rosAccess";
 
 export const native = isTauri();
 export const android = /Android/i.test(navigator.userAgent);
@@ -74,7 +75,8 @@ export function call<T>(
 ): Promise<T> {
   if (!native)
     return Promise.reject(new Error("请在 Tauri 应用中使用设备与 ROS 接口"));
-  return invoke<T>(command, args);
+  const control = routeRosCall(command, args);
+  return control ? invoke<T>("ros_control", control) : invoke<T>(command, args);
 }
 
 export function useStation() {
@@ -120,6 +122,11 @@ export function useRos(
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
+    const changed = () => setRevision(v => v + 1);
+    window.addEventListener(rosTransportEvent, changed);
+    return () => window.removeEventListener(rosTransportEvent, changed);
+  }, []);
+  useEffect(() => {
     setData(null);
     setError(null);
     if (!native || !enabled || !baseUrl || !path) return;
@@ -141,7 +148,7 @@ export function useRos(
       } finally {
         if (active) {
           setLoading(false);
-          if (interval > 0) timer = setTimeout(() => void read(), interval);
+          if (interval > 0) timer = setTimeout(() => void read(), rosPollInterval(path, interval));
         }
       }
     }

@@ -4,6 +4,7 @@ pub mod maps;
 pub mod mission;
 pub mod payload;
 pub mod ros;
+pub mod ros_radio;
 pub mod station;
 pub mod telemetry;
 pub mod transport;

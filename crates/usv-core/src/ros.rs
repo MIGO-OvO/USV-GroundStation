@@ -18,6 +18,37 @@ pub struct RosClient {
     base: reqwest::Url,
 }
 impl RosClient {
+    pub fn control(&self, request: &crate::ros_radio::Request) -> Result<Value> {
+        request.validate()?;
+        let method =
+            reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|e| e.to_string())?;
+        let mut outgoing = self.client.request(method, self.url(&request.path)?);
+        if !request.authorization.is_empty() {
+            outgoing = outgoing.header("Authorization", &request.authorization);
+        }
+        if request.method != "GET" {
+            outgoing = outgoing.json(&request.body);
+        }
+        let response = outgoing.send().map_err(|e| e.to_string())?;
+        let status = response.status();
+        let mut bytes = Vec::new();
+        response
+            .take(2 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|e| e.to_string())?;
+        if bytes.len() > 2 * 1024 * 1024 {
+            return Err("ROS 控制响应超过 2 MiB".into());
+        }
+        let value: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        if !status.is_success() || value.get("success") == Some(&Value::Bool(false)) {
+            return Err(value
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("ROS 请求失败")
+                .into());
+        }
+        Ok(value)
+    }
     pub fn new(base: &str) -> Result<Self> {
         let mut url = reqwest::Url::parse(base).map_err(|e| e.to_string())?;
         if !["http", "https"].contains(&url.scheme())
