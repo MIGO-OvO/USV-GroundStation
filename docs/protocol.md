@@ -100,6 +100,10 @@ Rust HTTP client 复用以下接口：
 
 JSON 保留 ROS 的 success/data envelope。原始归档直接保存 HTTP 字节。采样归档继续由 ROS 的 attempt/window 逻辑创建，地面站不伪造补录。配置和地图有限写入开放，HTTP 物理控制接口未接入。
 
+点采样先用当前配置通道调用 `POST /api/recording/name`，body 为 `{"name":"湖心"}`。成功后将 `data.token` 放入 `31010.param1`，其余物理命令、session/request 及准入流程不变。token 范围为 `1..2^24-1`，可被 MAVLink float32 精确传递；船端保留最近 64 个名称，未知 token 拒绝启动。名称准备期间取消、STOP 或连接身份变化会取消待发送的启动。
+
+上传航点任务和进入 AUTO 前，通过 `POST /api/recording/mission` 保存整个任务名称。ROS 将名称、采样开始时间和 `waypoint_seq` 固定到本次采样 context。下载优先采用服务端 UTF-8 `Content-Disposition` 文件名，保存前校验路径和 Windows 文件名字符；已有同名文件继续使用独占创建避免覆盖。
+
 ## 诊断时间
 
 本机 mono_ms 只在同一 clock_id 内相减。unix_ms 是地面站接收时间。飞控 boot time、Jetson 墙钟和本机单调时钟不直接相减；没有中间链路记录时，时间线保持未确认。ZIP 包含快照、JSONL、可选 Jetson 报告及 clocks.txt。

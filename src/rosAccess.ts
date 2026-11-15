@@ -44,7 +44,7 @@ export function controlArgs(
   };
 }
 export function controlPath(path: string) {
-  return /^\/api\/(config$|pid\/config$|calibration\/(offsets|zero|reset|start)$|presets\/auto$|preset\/auto\/|waypoint-sampling($|\/)|manual\/|injection-pump\/|hardware\/|diagnostics\/(link($|\/reconnect$)|system$|events$|history$))/.test(
+  return /^\/api\/(recording\/(name|mission)$|config$|pid\/config$|calibration\/(offsets|zero|reset|start)$|presets\/auto$|preset\/auto\/|waypoint-sampling($|\/)|manual\/|injection-pump\/|hardware\/|diagnostics\/(link($|\/reconnect$)|system$|events$|history$))/.test(
     path,
   );
 }

@@ -24,6 +24,7 @@ zip = { version = "4", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.10"
 flate2 = "1"
+percent-encoding = "2"
 
 [target.'cfg(windows)'.dependencies]
 serialport = { version = "4", default-features = false }

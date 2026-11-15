@@ -150,15 +150,7 @@ async fn ros_post(
         .map_err(|e| e.to_string())?
 }
 fn save_file(directory: PathBuf, name: String, bytes: &[u8]) -> Result<String, String> {
-    if name.len() > 100
-        || name.contains(['\\', '/', ':'])
-        || name.contains("..")
-        || !name
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-' || b == b'_')
-    {
-        return Err("导出文件名无效".into());
-    }
+    usv_core::ros::validate_export_name(&name)?;
     std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
     let mut path = directory.join(&name);
     for suffix in 0..1000 {

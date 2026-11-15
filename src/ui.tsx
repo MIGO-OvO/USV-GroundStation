@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { recordingName } from "./recording";
 import { AlertTriangle, X, Check, Circle } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Snapshot, RequestRecord } from "./types";
@@ -77,13 +78,20 @@ export function Confirm({
   onConfirm,
   onClose,
   busy,
+  nameLabel,
+  initialName = "",
 }: {
   text: string;
-  onConfirm: () => void;
+  onConfirm: (name?: string) => void;
   onClose: () => void;
   busy: boolean;
+  nameLabel?: string;
+  initialName?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const id = useId();
+  const [name, setName] = useState(initialName);
+  const [error, setError] = useState("");
   useEffect(() => {
     ref.current?.showModal();
   }, []);
@@ -106,14 +114,52 @@ export function Confirm({
         </button>
       </div>
       <p id="confirm-operation-target">{text}</p>
-      <div className="button-row end">
-        <button onClick={onClose} disabled={busy}>
-          取消
-        </button>
-        <button className="primary" onClick={onConfirm} disabled={busy}>
-          {busy ? "提交中" : "确认执行"}
-        </button>
-      </div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (busy) return;
+          try {
+            onConfirm(nameLabel ? recordingName(name) : undefined);
+          } catch (error) {
+            setError((error as Error).message);
+          }
+        }}
+      >
+        {nameLabel && (
+          <label className="recording-name" htmlFor={id}>
+            {nameLabel}
+            <input
+              id={id}
+              autoFocus
+              value={name}
+              disabled={busy}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${id}-error` : undefined}
+              onChange={(event) => {
+                setName(event.target.value);
+                setError("");
+              }}
+            />
+          </label>
+        )}
+        {error && (
+          <p id={`${id}-error`} role="alert">
+            {error}
+          </p>
+        )}
+        <div className="button-row end">
+          <button type="button" onClick={onClose}>
+            取消
+          </button>
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || Boolean(nameLabel && !name.trim())}
+          >
+            {busy ? "提交中" : "确认执行"}
+          </button>
+        </div>
+      </form>
     </dialog>
   );
 }

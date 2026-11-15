@@ -1572,6 +1572,16 @@ pre {
   font-size: 14px;
   line-height: 1.9;
 }
+.recording-name {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+.confirm-dialog [role="alert"] {
+  color: var(--danger);
+  padding: 0 0 16px;
+}
 @media (max-width: 1280px) {
   :root {
     --sidebar-width: 168px;

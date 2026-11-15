@@ -93,6 +93,41 @@ fn ros_errors_are_reported_without_success_fallback() {
     );
     h.join().unwrap();
 }
+
+#[test]
+fn download_uses_utf8_server_filename_and_rejects_unsafe_paths() {
+    for (header, expected) in [
+        (
+            "attachment; filename=sample.csv; filename*=UTF-8''%E6%B9%96%E5%BF%83-20261116_123456_123456.csv",
+            Some("湖心-20261116_123456_123456.csv"),
+        ),
+        (
+            "attachment; filename=lake-2-20261116_123456_123456.csv",
+            Some("lake-2-20261116_123456_123456.csv"),
+        ),
+        ("attachment; filename*=UTF-8''..%2Foutside.csv", None),
+        ("attachment; filename*=UTF-8''C%3A%5Coutside.csv", None),
+        ("attachment; filename*=UTF-8''bad%00.csv", None),
+        ("attachment; filename=NUL.csv", None),
+    ] {
+        let content_type = format!("text/csv\r\nContent-Disposition: {header}");
+        let (base, handle) = server(
+            "200 OK",
+            &content_type,
+            b"voltage\r\n1.2\r\n".to_vec(),
+            "GET /api/data/mission/m1/raw.csv ",
+        );
+        let result = RosClient::new(&base)
+            .unwrap()
+            .download("/api/data/mission/m1/raw.csv");
+        if let Some(name) = expected {
+            assert_eq!(result.unwrap().name, name);
+        } else {
+            assert!(result.is_err());
+        }
+        handle.join().unwrap();
+    }
+}
 #[test]
 fn physical_web_commands_and_cross_origin_paths_are_not_exposed() {
     let ros = RosClient::new("http://127.0.0.1:9").unwrap();

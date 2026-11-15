@@ -42,6 +42,7 @@ import PayloadWorkspace, {
 } from "./PayloadWorkspace";
 import Diagnostics from "./Diagnostics";
 import Settings from "./Settings";
+import { prepareRecording, recordingKind } from "./recording";
 
 type Workspace =
   | "cockpit"
@@ -381,6 +382,12 @@ export default function App() {
     intent: Intent;
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const submissionGeneration = useRef(0);
+  useEffect(() => {
+    submissionGeneration.current += 1;
+    setConfirmation(null);
+    setBusy(false);
+  }, [s.link, s.telemetry.system_id, s.clock_id]);
   const series = useSignals(s);
   useEffect(() => {
     document.documentElement.dataset.theme = preferences.theme;
@@ -398,10 +405,19 @@ export default function App() {
   function notify(text: string, isError = false) {
     setNotice({ text, error: isError });
   }
-  async function execute(intent: Intent) {
+  async function execute(intent: Intent, name?: string) {
+    const generation = ++submissionGeneration.current;
     setBusy(true);
     try {
+      if (recordingKind(intent)) {
+        intent = await prepareRecording(intent, name ?? "", preferences.rosUrl);
+        if (generation !== submissionGeneration.current) return;
+        if (recordingKind(intent) === "mission")
+          setDraft((draft) => ({ ...draft, name: name?.trim() }));
+      }
+      setConfirmation(null);
       const result = object(await backendSend(intent));
+      if (generation !== submissionGeneration.current) return;
       const failures = Object.entries(result)
         .filter(([, value]) => "Err" in object(value))
         .map(([key, value]) => `${key}：${String(object(value).Err)}`);
@@ -414,15 +430,16 @@ export default function App() {
         failures.length > 0,
       );
     } catch (e) {
-      notify(String(e), true);
+      if (generation === submissionGeneration.current) notify(String(e), true);
     } finally {
-      setBusy(false);
-      setConfirmation(null);
+      if (generation === submissionGeneration.current) setBusy(false);
     }
   }
   const send: SendIntent = async (intent, text) => {
-    if (text) {
-      setConfirmation({ intent, text });
+    if (text || recordingKind(intent)) {
+      submissionGeneration.current += 1;
+      setBusy(false);
+      setConfirmation({ intent, text: text || "开始采样？" });
       return;
     }
     await execute(intent);
@@ -655,12 +672,29 @@ export default function App() {
       </footer>
       {confirmation && (
         <Confirm
+          key={JSON.stringify(confirmation)}
           text={confirmation.text}
           busy={busy}
+          nameLabel={
+            recordingKind(confirmation.intent) === "sample"
+              ? "采样名称"
+              : recordingKind(confirmation.intent) === "mission"
+                ? "任务名称"
+                : undefined
+          }
+          initialName={
+            recordingKind(confirmation.intent) === "sample"
+              ? ""
+              : confirmation.intent.type === "upload_mission"
+                ? confirmation.intent.draft.name
+                : s.mission.draft?.name || draft.name
+          }
           onClose={() => {
-            if (!busy) setConfirmation(null);
+            submissionGeneration.current += 1;
+            setConfirmation(null);
+            setBusy(false);
           }}
-          onConfirm={() => void execute(confirmation.intent)}
+          onConfirm={(name) => void execute(confirmation.intent, name)}
         />
       )}
     </div>

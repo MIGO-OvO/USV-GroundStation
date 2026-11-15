@@ -107,6 +107,7 @@ export interface Waypoint {
 }
 export interface MissionDraft {
   version: 1;
+  name?: string;
   waypoints: Waypoint[];
 }
 export interface MissionItem {

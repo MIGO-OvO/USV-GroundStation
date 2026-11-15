@@ -10,6 +10,15 @@ fn request(path: &str, body: Value) -> Request {
         authorization: String::new(),
     }
 }
+
+#[test]
+fn recording_names_use_the_existing_metadata_channel() {
+    for path in ["/api/recording/name", "/api/recording/mission"] {
+        let operation = request(path, json!({"name":"环湖任务"}));
+        assert!(operation.validate().is_ok());
+        assert!(!operation.physical());
+    }
+}
 fn ready(client: &mut Client, now: u64) {
     let (hello, _) = client.next(now).unwrap();
     assert_eq!(hello.kind, HELLO);

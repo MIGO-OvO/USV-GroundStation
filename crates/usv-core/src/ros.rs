@@ -11,6 +11,67 @@ pub struct Download {
     pub bytes: Vec<u8>,
 }
 
+pub fn validate_export_name(name: &str) -> Result<()> {
+    if name.is_empty()
+        || name.len() > 240
+        || name.ends_with(['.', ' '])
+        || name
+            .chars()
+            .any(|c| c.is_control() || "<>:\"/\\|?*".contains(c))
+        || [
+            "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+            "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        ]
+        .contains(
+            &name
+                .split('.')
+                .next()
+                .unwrap_or("")
+                .to_ascii_uppercase()
+                .as_str(),
+        )
+    {
+        return Err("导出文件名无效".into());
+    }
+    Ok(())
+}
+
+fn download_name(header: Option<&str>) -> Result<Option<String>> {
+    let Some(header) = header else {
+        return Ok(None);
+    };
+    let parts: Vec<_> = header
+        .split(';')
+        .filter_map(|part| part.trim().split_once('='))
+        .collect();
+    let name = if let Some((_, value)) = parts
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("filename*"))
+    {
+        let mut encoded = value.trim_matches('"').splitn(3, '\'');
+        if !encoded
+            .next()
+            .is_some_and(|charset| charset.eq_ignore_ascii_case("UTF-8"))
+        {
+            return Err("下载文件名编码无效".into());
+        }
+        encoded.next();
+        percent_encoding::percent_decode_str(encoded.next().ok_or("下载文件名编码无效")?)
+            .decode_utf8()
+            .map_err(|_| "下载文件名编码无效")?
+            .into_owned()
+    } else if let Some((_, value)) = parts
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("filename"))
+    {
+        value.trim_matches('"').to_string()
+    } else {
+        return Ok(None);
+    };
+    validate_export_name(&name)?;
+    Ok(Some(name))
+}
+
 /// All HTTP data crosses this Rust boundary. Control commands use the MAVLink
 /// actor; the web bridge exposes read-only diagnostics/data plus config/maps.
 pub struct RosClient {
@@ -178,6 +239,12 @@ impl RosClient {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("application/octet-stream")
             .to_string();
+        let name = download_name(
+            response
+                .headers()
+                .get("content-disposition")
+                .and_then(|value| value.to_str().ok()),
+        )?;
         let mut bytes = Vec::new();
         std::io::Read::take(response, 256 * 1024 * 1024 + 1)
             .read_to_end(&mut bytes)
@@ -193,7 +260,9 @@ impl RosClient {
             "csv"
         };
         Ok(Download {
-            name: format!("usv-data-{}.{}", crate::diagnostics::unix_ms(), suffix),
+            name: name.unwrap_or_else(|| {
+                format!("usv-data-{}.{}", crate::diagnostics::unix_ms(), suffix)
+            }),
             content_type,
             bytes,
         })

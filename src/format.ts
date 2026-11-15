@@ -1,4 +1,5 @@
 import type { Snapshot, RequestRecord, MissionDraft } from "./types";
+import { recordingName } from "./recording";
 
 export function field(s: Snapshot, name: string): number | null {
   const f = s.telemetry.fields[name];
@@ -125,5 +126,11 @@ export function parseMission(text: string): MissionDraft {
       altitude: p.altitude,
     };
   });
-  return { version: 1, waypoints };
+  if ("name" in value && typeof value.name !== "string")
+    throw new Error("任务名称应为文本");
+  const name =
+    "name" in value && typeof value.name === "string" && value.name.trim()
+      ? recordingName(value.name)
+      : undefined;
+  return { version: 1, waypoints, ...(name ? { name } : {}) };
 }

@@ -88,6 +88,8 @@ pub fn allowed(method: &str, path: &str) -> bool {
         "POST" => matches!(
             path,
             "/api/config"
+                | "/api/recording/name"
+                | "/api/recording/mission"
                 | "/api/pid/config"
                 | "/api/calibration/offsets"
                 | "/api/calibration/zero"
