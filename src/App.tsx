@@ -267,15 +267,16 @@ function Cockpit({
             </div>
             <div className="mode-buttons">
               <button
-                disabled={!s.navigation.hold}
+                disabled={!s.navigation.loiter}
                 onClick={() =>
-                  void send({ type: "mode", mode: 4, confirmed: true })
+                  void send({ type: "mode", mode: 5, confirmed: true })
                 }
               >
-                HOLD 保持
+                LOITER 定点驻留
               </button>
               <button
                 disabled={!s.navigation.auto}
+                title={s.navigation.auto_reason ?? undefined}
                 onClick={() =>
                   void send(
                     { type: "mode", mode: 10, confirmed: true },

@@ -160,7 +160,9 @@ export interface NavigationActions {
   arm: boolean;
   disarm: boolean;
   hold: boolean;
+  loiter: boolean;
   auto: boolean;
+  auto_reason: string | null;
   guided: boolean;
   rtl: boolean;
   mission_start: boolean;

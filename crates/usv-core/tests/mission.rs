@@ -18,7 +18,7 @@ fn draft() -> MissionDraft {
                 lon: 110.413,
                 altitude: 0.0,
                 sample: false,
-                timeout_s: 255,
+                timeout_s: DEFAULT_SAMPLE_TIMEOUT_S,
             },
         ],
     }
@@ -58,6 +58,37 @@ fn sampling_item_and_home_match_ros_contract() {
     assert_eq!(items[2].command, 42702);
     assert_eq!(items[2].params, [1.0, 255.0, 0.0, 0.0]);
     assert_eq!(MissionDraft::from_items(&items).unwrap(), draft());
+}
+
+#[test]
+fn extended_sampling_limit_roundtrips_and_is_verified() {
+    let mut d = draft();
+    d.waypoints[0].timeout_s = 1800;
+    let items = d.build().unwrap();
+    assert_eq!(items[2].params, [1.0, 255.0, 1800.0, 0.0]);
+    assert_eq!(MissionDraft::from_items(&items).unwrap(), d);
+    let mut returned = items[2].clone();
+    returned.frame = 0;
+    assert!(same_item(&items[2], &returned));
+    returned.params[2] = 0.0;
+    assert!(!same_item(&items[2], &returned));
+}
+
+#[test]
+#[allow(deprecated)]
+fn legacy_mission_request_keeps_waypoint_int_precision() {
+    let mut m = MissionManager::default();
+    m.start_upload(draft(), (1, 1), (254, 190), 0).unwrap();
+    let request = MavMessage::MISSION_REQUEST(MISSION_REQUEST_DATA {
+        seq: 1,
+        target_system: 254,
+        target_component: 190,
+        ..Default::default()
+    })
+    .into();
+    let replies = m.on_message(&request, 10).unwrap();
+    let expected = draft().build().unwrap()[1].message(1, 1, true).unwrap();
+    assert_eq!(replies, vec![expected]);
 }
 #[test]
 fn rejects_invalid_coordinates_version_and_timeout() {

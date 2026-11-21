@@ -25,10 +25,12 @@ describe("device data boundaries", () => {
       ],
     };
     expect(parseMission(JSON.stringify(draft))).toEqual(draft);
+    draft.waypoints[0].timeout_s = 1800;
+    expect(parseMission(JSON.stringify(draft))).toEqual(draft);
     for (const patch of [
       { lat: 91 },
       { lon: "110" },
-      { timeout_s: 256 },
+      { timeout_s: 2049 },
       { timeout_s: 1.5 },
       { sample: 1 },
     ]) {

@@ -64,7 +64,7 @@ export default function Planner({
       ...draft,
       waypoints: [
         ...draft.waypoints,
-        { lat, lon, altitude: 0, sample: false, timeout_s: 255 },
+        { lat, lon, altitude: 0, sample: false, timeout_s: 1800 },
       ],
     });
   };
@@ -233,7 +233,7 @@ export default function Planner({
                         disabled={!w.sample}
                         type="number"
                         min="1"
-                        max="255"
+                        max="2048"
                         step="1"
                         value={w.timeout_s}
                         onChange={(e) =>
@@ -329,6 +329,7 @@ export default function Planner({
           <div className="button-row navigation-row">
             <button
               disabled={!s.navigation.auto}
+              title={s.navigation.auto_reason ?? undefined}
               onClick={() =>
                 void send(
                   { type: "mode", mode: 10, confirmed: true },
@@ -339,12 +340,12 @@ export default function Planner({
               AUTO 执行 / 继续
             </button>
             <button
-              disabled={!s.navigation.hold}
+              disabled={!s.navigation.loiter}
               onClick={() =>
-                void send({ type: "mode", mode: 4, confirmed: true })
+                void send({ type: "mode", mode: 5, confirmed: true })
               }
             >
-              HOLD 暂停航行
+              LOITER 定点驻留
             </button>
             <button
               className="danger-outline"
@@ -352,14 +353,16 @@ export default function Planner({
               onClick={() =>
                 void send(
                   { type: "stop_mission", confirmed: true },
-                  "切换 HOLD 并停止采样及载荷输出。航行和载荷分别确认，飞控保留当前任务进度。",
+                  "切换 HOLD 停止推进，同时停止采样及载荷输出。飞控保留当前任务进度。",
                 )
               }
             >
               停止任务与采样
             </button>
           </div>
-          <p className="caption">到达采样点后等待采样完成，再继续航行。</p>
+          {s.navigation.auto_reason && (
+            <p className="caption">{s.navigation.auto_reason}</p>
+          )}
         </div>
       </div>
     </section>

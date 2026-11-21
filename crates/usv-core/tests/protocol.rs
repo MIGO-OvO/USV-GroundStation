@@ -679,6 +679,67 @@ fn arm_requires_fresh_disarmed_telemetry_and_snapshot_agrees() {
     e.telemetry.heartbeat_ms = Some(4000);
     assert!(!e.snapshot(4000).navigation.arm);
 }
+
+#[test]
+fn loiter_requires_fresh_position_and_respects_the_stop_lock() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let loiter = || Intent::Mode {
+        mode: 5,
+        confirmed: true,
+    };
+    assert!(!e.snapshot(100).navigation.loiter);
+    assert!(e.intent(loiter(), 100).is_err());
+    for (name, value) in [("gps_fix", 3.0), ("latitude", 25.3), ("longitude", 110.4)] {
+        e.telemetry.put(name, value, 100, 1);
+    }
+    assert!(e.snapshot(100).navigation.loiter);
+    assert!(e.intent(loiter(), 100).is_ok());
+    assert_eq!(e.flight.last().unwrap().desired_value, Some(5.0));
+    e.safety.outputs_unknown = true;
+    assert!(!e.snapshot(100).navigation.loiter);
+    assert!(e.intent(loiter(), 100).is_err());
+    e.safety.outputs_unknown = false;
+    e.telemetry.heartbeat_ms = Some(4000);
+    assert!(!e.snapshot(4000).navigation.loiter);
+}
+
+#[test]
+fn sampling_auto_requires_verified_route_and_ready_payload() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let auto = || Intent::Mode {
+        mode: 10,
+        confirmed: true,
+    };
+    for (name, value) in [("gps_fix", 3.0), ("latitude", 25.3), ("longitude", 110.4)] {
+        e.telemetry.put(name, value, 100, 1);
+    }
+    assert!(e.snapshot(100).navigation.auto);
+    e.mission
+        .snapshot
+        .items
+        .push(usv_core::mission::MissionItem {
+            seq: 2,
+            command: 42702,
+            frame: 0,
+            params: [1.0, 255.0, 1800.0, 0.0],
+            x: 0,
+            y: 0,
+            z: 0.0,
+            autocontinue: 1,
+        });
+    assert!(!e.snapshot(100).navigation.auto);
+    assert!(e.intent(auto(), 100).is_err());
+    e.mission.snapshot.verified = true;
+    assert!(e.intent(auto(), 100).is_err());
+    e.telemetry.put("USV_ADS", 3.0, 100, 191);
+    e.telemetry.put("USV_STAT", 8.0, 100, 191);
+    assert!(e.intent(auto(), 100).is_err());
+    e.telemetry.put("USV_STAT", 0.0, 100, 191);
+    assert!(e.snapshot(100).navigation.auto);
+    assert!(e.intent(auto(), 100).is_ok());
+}
 #[test]
 fn mission_stop_creates_hold_and_independent_payload_stop() {
     let d = tempfile::tempdir().unwrap();
@@ -689,6 +750,7 @@ fn mission_stop_creates_hold_and_independent_payload_stop() {
     assert!(result["navigation"]["Ok"].is_string());
     assert!(result["payload"]["Ok"].is_string());
     assert_eq!(e.flight.last().unwrap().command, 176);
+    assert_eq!(e.flight.last().unwrap().desired_value, Some(4.0));
     assert_eq!(e.records.last().unwrap().command, 31011);
 }
 #[test]

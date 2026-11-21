@@ -83,7 +83,9 @@ pub struct NavigationActions {
     pub arm: bool,
     pub disarm: bool,
     pub hold: bool,
+    pub loiter: bool,
     pub auto: bool,
+    pub auto_reason: Option<String>,
     pub guided: bool,
     pub rtl: bool,
     pub mission_start: bool,
@@ -494,12 +496,50 @@ impl Engine {
         if mode.is_none() && self.telemetry.get("armed", now) != Some(0.0) {
             return Err("等待新鲜的推进上锁状态".into());
         }
-        if matches!(mode, Some(10 | 11 | 15))
+        if matches!(mode, Some(5 | 10 | 11 | 15))
             && (self.telemetry.get("gps_fix", now).is_none_or(|v| v < 3.0)
                 || self.telemetry.get("latitude", now).is_none()
                 || self.telemetry.get("longitude", now).is_none())
         {
             return Err("等待新鲜 GPS 定位及位置".into());
+        }
+        Ok(())
+    }
+    fn auto_gate(&self, now: u64) -> Result<()> {
+        self.nav_gate(Some(10), true, now)?;
+        if self.mission.busy() {
+            return Err("等待任务传输完成".into());
+        }
+        let mission = &self.mission.snapshot;
+        let planned_sampling = mission
+            .draft
+            .as_ref()
+            .is_some_and(|draft| draft.waypoints.iter().any(|waypoint| waypoint.sample));
+        if planned_sampling
+            || mission
+                .items
+                .iter()
+                .any(|item| item.command == 42702 && item.params[0] == 1.0)
+        {
+            if !mission.verified {
+                return Err("先回读飞控中的采样航线".into());
+            }
+            if !self.telemetry.payload_online(now) {
+                return Err("等待载荷遥测".into());
+            }
+            if self.telemetry.get("USV_ADS", now) != Some(3.0)
+                || self.telemetry.get("USV_VLD", now) != Some(1.0)
+                || self.telemetry.get("USV_BSET", now) != Some(1.0)
+            {
+                return Err("先启动分光并设置基线".into());
+            }
+            if !self
+                .telemetry
+                .get("USV_STAT", now)
+                .is_some_and(|status| [0.0, 6.0, 9.0, 13.0].contains(&status))
+            {
+                return Err("等待载荷空闲".into());
+            }
         }
         Ok(())
     }
@@ -841,9 +881,10 @@ impl Engine {
                 if ![0, 4, 5, 10, 11, 12, 15].contains(&mode) {
                     return Err("此 ArduRover 模式未开放".into());
                 }
-                self.nav_gate(Some(mode), true, now)?;
-                if self.mission.busy() && mode == 10 {
-                    return Err("任务传输尚未完成".into());
+                if mode == 10 {
+                    self.auto_gate(now)?;
+                } else {
+                    self.nav_gate(Some(mode), true, now)?;
                 }
                 self.create_flight(
                     176,
@@ -851,7 +892,7 @@ impl Engine {
                     crate::telemetry::mode_name(mode),
                     Some(("mode", mode as f64)),
                     now,
-                    mode == 4,
+                    matches!(mode, 4 | 5),
                 )
                 .map(|id| json!({"request_id":id}))
             }
@@ -1637,6 +1678,7 @@ impl Engine {
                 }
             })
             .collect();
+        let auto_reason = self.auto_gate(now).err();
         Snapshot {
             now_ms: now,
             unix_ms: unix_ms(),
@@ -1671,7 +1713,9 @@ impl Engine {
                 arm: connected && unlocked && self.telemetry.get("armed", now) == Some(0.0),
                 disarm: connected,
                 hold: connected,
-                auto: connected && unlocked && gps && !self.mission.busy(),
+                loiter: self.nav_gate(Some(5), true, now).is_ok(),
+                auto: auto_reason.is_none(),
+                auto_reason,
                 guided: connected && unlocked && gps,
                 rtl: connected && unlocked && gps,
                 mission_start: connected

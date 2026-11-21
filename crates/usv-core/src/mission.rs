@@ -6,6 +6,9 @@ use crate::{
 use mavlink::Message;
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_SAMPLE_TIMEOUT_S: u16 = 1800;
+pub const MAX_SAMPLE_TIMEOUT_S: u16 = 2048;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Waypoint {
     pub lat: f64,
@@ -15,10 +18,10 @@ pub struct Waypoint {
     #[serde(default)]
     pub sample: bool,
     #[serde(default = "sample_timeout")]
-    pub timeout_s: u8,
+    pub timeout_s: u16,
 }
-fn sample_timeout() -> u8 {
-    255
+fn sample_timeout() -> u16 {
+    DEFAULT_SAMPLE_TIMEOUT_S
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MissionDraft {
@@ -57,7 +60,7 @@ impl MissionDraft {
                 || !w.altitude.is_finite()
                 || !(-90.0..=90.0).contains(&w.lat)
                 || !(-180.0..=180.0).contains(&w.lon)
-                || w.timeout_s == 0
+                || !(1..=MAX_SAMPLE_TIMEOUT_S).contains(&w.timeout_s)
             {
                 return Err("航点坐标、高度或采样超时无效".into());
             }
@@ -82,7 +85,16 @@ impl MissionDraft {
                     seq: items.len() as u16,
                     command: 42702,
                     frame: 6,
-                    params: [1.0, w.timeout_s as f32, 0.0, 0.0],
+                    params: [
+                        1.0,
+                        w.timeout_s.min(255) as f32,
+                        if w.timeout_s > 255 {
+                            w.timeout_s as f32
+                        } else {
+                            0.0
+                        },
+                        0.0,
+                    ],
                     x: 0,
                     y: 0,
                     z: 0.0,
@@ -101,19 +113,30 @@ impl MissionDraft {
                     lon: item.y as f64 / 1e7,
                     altitude: item.z,
                     sample: false,
-                    timeout_s: 255,
+                    timeout_s: DEFAULT_SAMPLE_TIMEOUT_S,
                 }),
-                42702
-                    if item.params[0] == 1.0
-                        && item.params[1] >= 1.0
-                        && item.params[1] <= 255.0 =>
-                {
+                42702 if item.params[0] == 1.0 => {
                     let w = draft.waypoints.last_mut().ok_or("采样项之前缺少航点")?;
                     if w.sample {
                         return Err("同一航点有重复采样项，保留原始任务查看".into());
                     }
+                    let short = item.params[1];
+                    let extended = item.params[2];
+                    if !(0.0..=255.0).contains(&short)
+                        || short.fract() != 0.0
+                        || !(0.0..=MAX_SAMPLE_TIMEOUT_S as f32).contains(&extended)
+                        || extended.fract() != 0.0
+                    {
+                        return Err("采样时限无效，保留原始任务查看".into());
+                    }
                     w.sample = true;
-                    w.timeout_s = item.params[1] as u8;
+                    w.timeout_s = if extended > 0.0 {
+                        extended as u16
+                    } else if short > 0.0 {
+                        short as u16
+                    } else {
+                        255
+                    };
                 }
                 _ => {
                     return Err(format!(
@@ -334,13 +357,13 @@ impl MissionManager {
                 if self.snapshot.state == "uploading"
                     && b.mission_type == MavMissionType::MAV_MISSION_TYPE_MISSION =>
             {
-                self.upload_item(b.seq, true, now)
+                self.upload_item(b.seq, now)
             }
             MavMessage::MISSION_REQUEST(b)
                 if self.snapshot.state == "uploading"
                     && b.mission_type == MavMissionType::MAV_MISSION_TYPE_MISSION =>
             {
-                self.upload_item(b.seq, false, now)
+                self.upload_item(b.seq, now)
             }
             MavMessage::MISSION_ACK(b)
                 if self.snapshot.state == "uploading"
@@ -420,12 +443,12 @@ impl MissionManager {
             _ => Ok(vec![]),
         }
     }
-    fn upload_item(&mut self, seq: u16, int: bool, now: u64) -> Result<Vec<WireMessage>> {
+    fn upload_item(&mut self, seq: u16, now: u64) -> Result<Vec<WireMessage>> {
         let Some(item) = self.expected.as_ref().and_then(|v| v.get(seq as usize)) else {
             self.abort("飞控请求了越界任务项");
             return Ok(vec![]);
         };
-        let message = item.message(self.target.0, self.target.1, int)?;
+        let message = item.message(self.target.0, self.target.1, true)?;
         self.requested[seq as usize] = true;
         self.snapshot.completed = self.requested.iter().filter(|v| **v).count();
         self.snapshot.detail = format!("任务项 {seq} 已排队，等待飞控 ACK");
@@ -516,7 +539,9 @@ impl MissionManager {
 pub fn same_item(a: &MissionItem, b: &MissionItem) -> bool {
     a.seq == b.seq
         && a.command == b.command
-        && (a.frame == b.frame || [3, 6].contains(&a.frame) && [3, 6].contains(&b.frame))
+        && (a.frame == b.frame
+            || [3, 6].contains(&a.frame) && [3, 6].contains(&b.frame)
+            || a.command == 42702 && [0, 3, 6].contains(&a.frame) && [0, 3, 6].contains(&b.frame))
         && (a.x as i64 - b.x as i64).abs() <= 1
         && (a.y as i64 - b.y as i64).abs() <= 1
         && (a.z - b.z).abs() <= 0.01

@@ -113,7 +113,7 @@ export function parseMission(text: string): MissionDraft {
       typeof p.timeout_s !== "number" ||
       !Number.isInteger(p.timeout_s) ||
       p.timeout_s < 1 ||
-      p.timeout_s > 255 ||
+      p.timeout_s > 2048 ||
       typeof p.altitude !== "number" ||
       !Number.isFinite(p.altitude)
     )
