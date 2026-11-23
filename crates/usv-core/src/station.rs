@@ -15,7 +15,7 @@ use serde_json::json;
 use std::{
     collections::VecDeque,
     path::Path,
-    sync::{Arc, RwLock, mpsc},
+    sync::{Arc, RwLock, Weak, mpsc},
     time::{Duration, Instant},
 };
 
@@ -165,6 +165,7 @@ pub struct Engine {
     connection_error: Option<String>,
     requested_system: Option<u8>,
     transport: Option<Transport>,
+    firmware_session: Weak<()>,
     decoder: wire::Decoder,
     assembler: Reassembler,
     queue: VecDeque<Packet>,
@@ -248,6 +249,7 @@ impl Engine {
             saved_connection,
             connection_error,
             transport: None,
+            firmware_session: Weak::new(),
             decoder: wire::Decoder::default(),
             assembler: Reassembler::default(),
             queue: VecDeque::new(),
@@ -807,6 +809,9 @@ impl Engine {
                 config,
                 target_system,
             } => {
+                if self.firmware_session.strong_count() != 0 {
+                    return Err("请退出固件刷写后再连接飞控".into());
+                }
                 let profile = SavedConnection {
                     config: config.clone(),
                     target_system,
@@ -1750,6 +1755,7 @@ enum Operation {
         mpsc::Sender<Result<serde_json::Value>>,
     ),
     Intent(Intent, mpsc::Sender<Result<serde_json::Value>>),
+    ReserveFirmware(Weak<()>, mpsc::Sender<Result<()>>),
     Export(Option<serde_json::Value>, mpsc::Sender<Result<Vec<u8>>>),
 }
 #[derive(Clone)]
@@ -1791,6 +1797,17 @@ impl Station {
                                 }
                                 let _ = reply.send(result);
                             }
+                            Ok(Operation::ReserveFirmware(lease, reply)) => {
+                                let result = if engine.config.is_some() {
+                                    Err("请先断开飞控连接".into())
+                                } else if engine.firmware_session.strong_count() != 0 {
+                                    Err("已有固件刷写操作".into())
+                                } else {
+                                    engine.firmware_session = lease;
+                                    Ok(())
+                                };
+                                let _ = reply.send(result);
+                            }
                             Ok(Operation::Export(ros, reply)) => {
                                 let s = engine.snapshot(now);
                                 let _ = reply.send(engine.journal.export(&s, ros.as_ref()));
@@ -1829,6 +1846,16 @@ impl Station {
             .map_err(|e| e.to_string())?;
         rx.recv_timeout(Duration::from_secs(5))
             .map_err(|e| e.to_string())?
+    }
+    pub fn reserve_firmware(&self) -> Result<Arc<()>> {
+        let lease = Arc::new(());
+        let (tx, rx) = mpsc::channel();
+        self.sender
+            .send(Operation::ReserveFirmware(Arc::downgrade(&lease), tx))
+            .map_err(|e| e.to_string())?;
+        rx.recv_timeout(Duration::from_secs(5))
+            .map_err(|e| e.to_string())??;
+        Ok(lease)
     }
     pub fn ros_control(
         &self,

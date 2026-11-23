@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { version } from "../package.json";
 import {
   Compass,
   Navigation,
@@ -668,7 +669,7 @@ export default function App() {
         <span>
           WGS 84
           <span className="footer-divider" />
-          v0.1.3
+          v{version}
         </span>
       </footer>
       {confirmation && (

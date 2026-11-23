@@ -31,14 +31,14 @@ it("restores saved serial settings after disconnect and navigation", () => {
   };
   render(<App />);
   fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
-  expect(screen.getByRole("textbox", { name: "串口" })).toHaveValue("COM14");
+  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue("COM14");
   expect(screen.getByRole("combobox", { name: "波特率" })).toHaveValue(
     "230400",
   );
   expect(screen.getByRole("spinbutton", { name: "目标 sysid" })).toHaveValue(7);
   fireEvent.click(screen.getByRole("button", { name: "诊断" }));
   fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
-  expect(screen.getByRole("textbox", { name: "串口" })).toHaveValue("COM14");
+  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue("COM14");
   expect(mock.send).not.toHaveBeenCalled();
 });
 

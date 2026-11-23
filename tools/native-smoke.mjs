@@ -102,6 +102,12 @@ try {
   await page.screenshot({ path: '.impeccable/review/windows-native.png', fullPage: true });
   await page.getByRole('button', { name: '连接与设置' }).click();
   assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
+  const serial = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('serial_ports'));
+  assert(Array.isArray(serial) && serial.every(p => p.port && p.kind && p.label));
+  await page.getByRole('button', { name: '固件刷写', exact: true }).click();
+  const firmware = page.getByRole('dialog', { name: '飞控固件刷写' });
+  await firmware.getByRole('button', { name: '取消', exact: true }).click();
+  await firmware.waitFor({ state: 'hidden' });
   await page.getByRole('checkbox', { name: '启用底图' }).uncheck();
   await page.getByRole('button', { name: '诊断', exact: true }).click();
   assert.equal(await page.getByRole('heading', { name: '通信诊断' }).isVisible(), true);
@@ -117,6 +123,9 @@ try {
   while (connections < 1 && Date.now() < firstDeadline) await new Promise(r => setTimeout(r, 100));
   assert.equal(connections, 1);
   await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('station_snapshot')).saved_connection !== null);
+  const maintenanceError = await page.evaluate(() => window.__TAURI_INTERNALS__
+    .invoke('firmware_probe', { target: null }).then(() => null, error => String(error)));
+  assert.match(maintenanceError ?? '', /请先断开飞控连接/);
   const saved = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
   assert.deepEqual(saved.saved_connection, target);
   assert.equal(saved.connection_error, null);
@@ -142,7 +151,7 @@ try {
   await new Promise(r => setTimeout(r, 600));
   assert.equal(connections, 2, 'startup must open the connection once');
   assert.deepEqual(pageErrors, [], 'map startup and telemetry must not crash React');
-  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, offlinePolicy: 'preserved across location lookup', mapEvidence, startupAutoConnect: 'one loopback TCP connection after native process restart', manualDisconnect: 'preserved across frontend reload', screenshot: '.impeccable/review/windows-native.png' }));
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, enumeratedPorts: serial.length, firmwareMaintenance: 'blocked with a configured MAVLink connection', offlinePolicy: 'preserved across location lookup', mapEvidence, startupAutoConnect: 'one loopback TCP connection after native process restart', manualDisconnect: 'preserved across frontend reload', screenshot: '.impeccable/review/windows-native.png' }));
 } finally {
   if (browser) await browser.close();
   if (app.pid) app.kill();

@@ -4,7 +4,9 @@
 
 ## 参考实现
 
-QGC、ROS、ArduPilot 与检测板源码用于核查现有协议和行为。项目没有复制或分发这些参考仓库的源码、Qt/QML 组件、图片、字体或二进制；忽略的 `.reference` 不进入 Git、安装包或发布附件。测试 fixture 由 pymavlink 和 ROS ledger 工具输出报文/JSON后独立整理，生成脚本注明来源；不是现场采集数据。五个参考版本见 docs/source-baseline.md。
+QGC、ROS、ArduPilot 与检测板源码用于核查现有协议和行为。协议和界面由本项目独立实现。测试 fixture 由 pymavlink 和 ROS ledger 工具输出报文或 JSON 后独立整理，生成脚本注明来源。五个参考版本见 docs/source-baseline.md。
+
+`crates/usv-core/src/usb-board-info.json` 原样收录 QGroundControl v5.1.5 的 USB 设备识别数据，采用 Apache-2.0。原文件版权属于 QGroundControl Contributors，完整许可证见本项目 LICENSE。[原始设备表](https://github.com/mavlink/qgroundcontrol/blob/3a67d31f0c36bf3fe38ec52970d250a89d0aaf67/src/Comms/USBBoardInfo.json) · [上游许可](https://github.com/mavlink/qgroundcontrol/blob/3a67d31f0c36bf3fe38ec52970d250a89d0aaf67/.github/COPYING.md)
 
 `tools/jetson-router/route-learning.patch` 包含 MAVLink Router `2362c620f483cef1edd574fb962a373a288e4b9e` 的少量上下文及本项目修复，沿用 Apache-2.0。原文件版权属于 Intel Corporation 与 MAVLink Router Contributors，应用补丁后保留原文件声明；完整许可证见本项目 LICENSE。该候选工具不随 Windows 安装器部署。
 

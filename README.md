@@ -6,7 +6,8 @@
 
 ## 功能
 
-- UDP/TCP、Windows 串口，自动识别或指定 ArduRover sysid；记忆上次连接，启动时自动连接。
+- UDP/TCP、Windows 串口，插拔时自动更新串口和设备名称。可自动识别或指定 ArduRover sysid，记忆上次连接并在启动时恢复。
+- 飞控 USB 固件刷写，支持本地 APJ/PX4 和与板卡匹配的官方 ArduRover 稳定版。
 - 地图驾驶舱、定位/航迹、电池/姿态、解锁/上锁、LOITER/AUTO/GUIDED/RTL。
 - 31010 至 31019 载荷控制，持久化 session/request，关联 USVE1、三次同身份发送、分片重组、断线观察恢复。
 - 航点编辑、采样开关和超时、JSON 导入导出，原生 MAVLink 任务上传、下载和逐项回读。
@@ -53,7 +54,9 @@ node tools/native-smoke.mjs
 
 ## 验证与发布范围
 
-当前修复版本为 `v0.1.3` 预发布。Jetson ARM64 router 已在授权空闲台架条件下切换，数传载荷回程恢复；UART framing 错误仍存在。软件测试、接收观察与物理任务验收分别记录；实船航行及采样仍按验收清单执行。现场报文、回归与部署状态见 [问题记录](docs/map-payload-fix.md)。
+当前版本为 `v0.1.4` 预发布。飞控识别和刷写的操作步骤与适用范围见 [Windows 使用与部署](docs/windows.md#飞控固件刷写)。实船航行及采样按实机验收清单执行。
+
+Jetson ARM64 router 已在授权空闲台架切换，数传载荷回程恢复，UART framing 错误仍存在。[数传问题记录](docs/map-payload-fix.md)
 
 | 文档 | 内容 |
 |---|---|

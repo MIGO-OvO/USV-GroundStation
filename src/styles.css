@@ -1582,6 +1582,61 @@ pre {
   color: var(--danger);
   padding: 0 0 16px;
 }
+.firmware-dialog {
+  width: min(92vw, 560px);
+  max-width: none;
+  max-height: 88vh;
+  overflow: auto;
+}
+.firmware-dialog .dialog-title > svg {
+  color: var(--text);
+}
+.firmware-dialog p {
+  padding: 16px 0;
+}
+.firmware-field,
+.firmware-target,
+.firmware-progress {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.firmware-field select,
+.firmware-field input,
+.firmware-progress progress {
+  width: 100%;
+  min-width: 0;
+}
+.firmware-field input::file-selector-button {
+  margin-right: 10px;
+}
+.firmware-target {
+  margin: 18px 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.firmware-target strong {
+  font-size: 14px;
+  color: var(--text);
+}
+.firmware-sources {
+  margin-bottom: 16px;
+}
+.firmware-confirm {
+  margin-top: 18px;
+}
+.firmware-progress progress {
+  accent-color: var(--text);
+}
+.firmware-dialog [role="alert"] {
+  padding: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.firmware-dialog .button-row {
+  margin-top: 20px;
+}
 @media (max-width: 1280px) {
   :root {
     --sidebar-width: 168px;

@@ -13,6 +13,9 @@ use usv_core::{
     station::{Intent, Snapshot, Station},
 };
 
+#[cfg(windows)]
+mod firmware;
+
 struct AppState {
     station: Station,
     maps: Arc<MapCache>,
@@ -282,6 +285,21 @@ async fn map_stats(state: State<'_, AppState>) -> Result<serde_json::Value, Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
+    #[cfg(windows)]
+    let builder = builder
+        .manage(firmware::Maintenance::default())
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                let _ = webview.state::<firmware::Maintenance>().cancel();
+            }
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.state::<firmware::Maintenance>().flashing()
+            {
+                api.prevent_close();
+            }
+        });
     #[cfg(target_os = "android")]
     let builder = builder.plugin(
         tauri::plugin::Builder::<tauri::Wry>::new("file-export")
@@ -319,6 +337,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            #[cfg(windows)]
+            firmware::serial_ports,
+            #[cfg(windows)]
+            firmware::firmware_probe,
+            #[cfg(windows)]
+            firmware::firmware_cancel,
+            #[cfg(windows)]
+            firmware::firmware_rover_releases,
+            #[cfg(windows)]
+            firmware::firmware_flash,
             station_snapshot,
             station_intent,
             station_subscribe,

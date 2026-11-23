@@ -88,6 +88,27 @@ fn wait(s: &Station, predicate: impl Fn(&Snapshot) -> bool) -> Snapshot {
 }
 
 #[test]
+fn firmware_lease_excludes_pending_and_new_station_connections() {
+    let directory = tempfile::tempdir().unwrap();
+    let station = Station::start(directory.path()).unwrap();
+    let connect = Intent::Connect {
+        config: ConnectionConfig::Udp {
+            bind: "127.0.0.1:0".into(),
+            peer: None,
+        },
+        target_system: None,
+    };
+    station.dispatch(connect.clone()).unwrap();
+    assert!(station.reserve_firmware().is_err());
+    station.dispatch(Intent::Disconnect).unwrap();
+    let lease = station.reserve_firmware().unwrap();
+    assert!(station.dispatch(connect.clone()).is_err());
+    assert!(station.reserve_firmware().is_err());
+    drop(lease);
+    station.dispatch(connect).unwrap();
+}
+
+#[test]
 fn udp_retries_keep_identity_peer_deduplicates_and_ack_is_not_execution() {
     let d = tempfile::tempdir().unwrap();
     let station = Station::start(d.path()).unwrap();

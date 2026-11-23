@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Cable, Wifi, Server, Save, Map, RefreshCw } from "lucide-react";
+import { Cable, Cpu, Wifi, Server, Save, Map, RefreshCw } from "lucide-react";
+import { version } from "../package.json";
 import type {
   Snapshot,
   Preferences,
@@ -8,7 +9,9 @@ import type {
   Notify,
 } from "./types";
 import { call, useRos, unpack, native, android, object } from "./backend";
+import FirmwareDialog from "./FirmwareDialog";
 import RosControls from "./RosControls";
+import { serialLabel, useSerialPorts } from "./serial";
 
 export default function Settings({
   s,
@@ -39,11 +42,27 @@ export default function Settings({
     ),
     [port, setPort] = useState(previous?.kind === "tcp" ? previous.port : 5760),
     [serial, setSerial] = useState(
-      previous?.kind === "serial" ? previous.port : "COM5",
+      previous?.kind === "serial" ? previous.port : "",
     ),
-    [baud, setBaud] = useState(
-      previous?.kind === "serial" ? previous.baud : 115200,
+    [baud, setBaud] = useState<number | null>(
+      previous?.kind === "serial" ? previous.baud : null,
     );
+  const [manualSerial, setManualSerial] = useState(false);
+  const [firmwareOpen, setFirmwareOpen] = useState(false);
+  const { ports: serialPorts, error: scanError } = useSerialPorts(
+    native && !android && (kind === "serial" || firmwareOpen),
+  );
+  const recognizedLinks = serialPorts.filter(
+    (device) =>
+      !device.bootloader_hint &&
+      (device.kind === "flight_controller" || device.kind === "telemetry_radio"),
+  );
+  const serialPort =
+    serial ||
+    (!manualSerial && recognizedLinks.length === 1 ? recognizedLinks[0].port : "");
+  const serialDevice = serialPorts.find((device) => device.port === serialPort);
+  const serialBaud =
+    baud ?? (serialDevice?.kind === "telemetry_radio" ? 57600 : 115200);
   const [target, setTarget] = useState(
     s.saved_connection?.target_system?.toString() ?? "",
   );
@@ -87,7 +106,7 @@ export default function Settings({
         ? { kind, bind, peer: peer || null }
         : kind === "tcp"
           ? { kind, host, port }
-          : { kind, port: serial, baud };
+          : { kind, port: serialPort.trim(), baud: serialBaud };
     await send({
       type: "connect",
       config: connection,
@@ -208,16 +227,41 @@ export default function Settings({
             ) : (
               <>
                 <label>
-                  串口
-                  <input
-                    value={serial}
-                    onChange={(e) => setSerial(e.target.value)}
-                  />
+                  串口设备
+                  <select
+                    value={manualSerial ? "manual" : serialPort}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setManualSerial(value === "manual");
+                      setSerial(value === "manual" ? serialPort : value);
+                    }}
+                  >
+                    <option value="">
+                      {serialPorts.length ? "选择串口" : "尚未检测到串口"}
+                    </option>
+                    {serialPorts.map((device) => (
+                      <option key={device.port} value={device.port}>
+                        {serialLabel(device)}
+                      </option>
+                    ))}
+                    {!manualSerial && serialPort && !serialDevice && (
+                      <option value={serialPort}>{serialPort}（未检测到）</option>
+                    )}
+                    <option value="manual">手动输入…</option>
+                  </select>
+                  {manualSerial && (
+                    <input
+                      aria-label="手动串口号"
+                      value={serial}
+                      placeholder="COM5"
+                      onChange={(event) => setSerial(event.target.value)}
+                    />
+                  )}
                 </label>
                 <label>
                   波特率
                   <select
-                    value={baud}
+                    value={serialBaud}
                     onChange={(e) => setBaud(Number(e.target.value))}
                   >
                     {[57600, 115200, 230400, 460800, 921600].map((b) => (
@@ -239,10 +283,20 @@ export default function Settings({
               />
             </label>
           </div>
+          {kind === "serial" && scanError && (
+            <p className="inline-error" role="alert">{scanError}</p>
+          )}
+          {kind === "serial" && serialDevice?.bootloader_hint && (
+            <p className="caption">此串口处于引导模式，可打开固件刷写。</p>
+          )}
           <div className="button-row">
             <button
               className="primary"
-              disabled={!native}
+              disabled={
+                !native ||
+                (kind === "serial" &&
+                  (!serialPort.trim() || Boolean(serialDevice?.bootloader_hint)))
+              }
               onClick={() => void connect()}
             >
               <Wifi size={16} />
@@ -254,6 +308,16 @@ export default function Settings({
             >
               断开
             </button>
+            {native && !android && (
+              <button
+                disabled={Boolean(s.connection)}
+                title={s.connection ? "断开飞控连接后可刷写" : undefined}
+                onClick={() => setFirmwareOpen(true)}
+              >
+                <Cpu size={16} />
+                固件刷写
+              </button>
+            )}
             <span className="caption">GCS 254 / 190 · MAVLink 2</span>
           </div>
           {s.error && <p className="inline-error">{s.error}</p>}
@@ -456,7 +520,7 @@ export default function Settings({
           <dl className="settings-info">
             <div>
               <dt>版本</dt>
-              <dd>0.1.3</dd>
+              <dd>{version}</dd>
             </div>
             <div>
               <dt>控制核心</dt>
@@ -473,6 +537,13 @@ export default function Settings({
           </dl>
         </section>
       </div>
+      {firmwareOpen && (
+        <FirmwareDialog
+          ports={serialPorts}
+          scanError={scanError}
+          onClose={() => setFirmwareOpen(false)}
+        />
+      )}
     </section>
   );
 }

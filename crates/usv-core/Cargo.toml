@@ -24,11 +24,14 @@ zip = { version = "4", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.10"
 flate2 = "1"
+base64 = "0.22"
+crc32fast = "1"
 percent-encoding = "2"
 
 [target.'cfg(windows)'.dependencies]
 serialport = { version = "4", default-features = false }
-windows = { version = "0.62", features = ["Devices_Geolocation", "Foundation", "Win32_System_WinRT"] }
+regex = "1"
+windows = { version = "0.62", features = ["Devices_Geolocation", "Foundation", "Win32_System_WinRT", "Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Registry"] }
 
 [build-dependencies]
 mavlink-bindgen = { version = "0.21", features = ["serde", "mav2-message-extensions"] }
