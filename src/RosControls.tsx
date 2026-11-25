@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffectEvent, useLayoutEffect, useMemo, useState } from "react";
 import type { Snapshot, Notify } from "./types";
 import { call, object, unpack, native } from "./backend";
 import {
@@ -41,26 +41,40 @@ export default function RosControls({
   const [angle, setAngle] = useState(90);
   const [continuous, setContinuous] = useState(false);
   const [injectionSpeed, setInjectionSpeed] = useState(20);
-  const [manual, setManual] = useState<{
-    data: Record<string, unknown>;
-    at: number;
-  } | null>(null);
+  const [manual, setManual] = useState<Record<string, unknown> | null>(null);
+  const [manualMessage, setManualMessage] = useState("");
+  const [manualActivity, setManualActivity] = useState<"read" | "stop" | null>(
+    null,
+  );
   const [confirm, setConfirm] = useState<{
     label: string;
     path: string;
     body: unknown;
   } | null>(null);
   const ready = native && (transport === "http" || s.link === "connected");
+  const radioSession =
+    transport === "mavlink"
+      ? `${s.link}:${s.telemetry.generation}:${s.telemetry.system_id}:${s.payload_online}`
+      : "";
+  const manualSession = useMemo(
+    () => ({ active: false, revision: 0 }),
+    [baseUrl, transport, s.clock_id, radioSession],
+  );
   const protectedOutputs =
     s.safety.emergency_latched || s.safety.outputs_unknown;
-  const manualFresh = manual && Date.now() - manual.at < 5000;
+  let manualLabel = "手动状态待确认";
+  if (!ready) manualLabel = "等待通信连接";
+  else if (protectedOutputs) manualLabel = "停止保护生效";
+  else if (manual?.automation_active === true) manualLabel = "自动化运行中";
+  else if (manual?.enabled === true) manualLabel = "手动模式已开启";
+  else if (manual?.enabled === false) manualLabel = "手动模式已关闭";
   const canMove =
     ready &&
     !busy &&
+    manualActivity !== "stop" &&
     !protectedOutputs &&
-    manualFresh &&
-    manual.data.enabled === true &&
-    manual.data.automation_active === false;
+    manual?.enabled === true &&
+    manual.automation_active === false;
   const path = topic === "presets" ? topics[topic][1] + name : topics[topic][1];
   function editTopic(value: Topic) {
     setTopic(value);
@@ -74,27 +88,66 @@ export default function RosControls({
     confirmed = false,
   ) {
     // Stops remain usable while a long read/write is pending.
-    const stop =
-      path === "/api/manual/stop-all" || path === "/api/injection-pump/off";
-    if (!stop) setBusy(true);
-    try {
-      const result = await call<unknown>(
-        "ros_control",
-        controlArgs(baseUrl, method, path, body, confirmed),
+    const manualAction = path.startsWith("/api/manual/");
+    const readStatus = path === "/api/manual/status";
+    const stopAll = path === "/api/manual/stop-all";
+    const stop = stopAll || path === "/api/injection-pump/off";
+    const revision = manualAction ? ++manualSession.revision : 0;
+    const current = () =>
+      !manualAction ||
+      (manualSession.active && revision === manualSession.revision);
+    if (!stop && !readStatus) setBusy(true);
+    if (manualAction) {
+      setManualActivity(readStatus ? "read" : stopAll ? "stop" : null);
+      setManualMessage(
+        readStatus
+          ? "正在读取手动状态…"
+          : stopAll
+            ? "正在停止全部泵…"
+            : "正在等待设备响应…",
       );
-      setReport(result);
-      if (path === "/api/manual/status")
-        setManual({ data: object(unpack(result)), at: Date.now() });
-      if (path === "/api/manual/stop-all" || path === "/api/manual/mode")
-        setManual(null);
-      if (method !== "GET" && path !== "/api/injection-pump/status")
-        notify("操作已提交，请查看设备反馈");
+    }
+    try {
+      const args = controlArgs(baseUrl, method, path, body, confirmed);
+      const send = () => call<unknown>("ros_control", args);
+      const result = await send().catch((error) => {
+        // A ROS restart can invalidate the first request on an otherwise live radio.
+        if (readStatus && transport === "mavlink" && current()) return send();
+        throw error;
+      });
+      if (!current()) return result;
+      if (manualAction) {
+        const data = object(unpack(result));
+        if (readStatus || path === "/api/manual/mode") {
+          setManual(data);
+          setManualMessage("");
+        } else if (stopAll) {
+          setManualMessage("全泵停止已确认");
+        } else {
+          const axis = object(body).axis;
+          setManualMessage(
+            data.controller_reply === "CMD_OK"
+              ? `${axis} 轴指令已获控制板确认`
+              : `${axis} 轴指令已提交，控制板回执待确认`,
+          );
+        }
+      } else {
+        setReport(result);
+        if (method !== "GET" && path !== "/api/injection-pump/status")
+          notify("操作已提交，请查看设备反馈");
+      }
       return result;
     } catch (error) {
-      notify(String(error), true);
+      if (current()) {
+        if (manualAction) {
+          if (readStatus || path === "/api/manual/mode") setManual(null);
+          setManualMessage(String(error));
+        } else notify(String(error), true);
+      }
       throw error;
     } finally {
-      if (!stop) setBusy(false);
+      if (!stop && !readStatus) setBusy(false);
+      if (manualAction && current()) setManualActivity(null);
     }
   }
   const run = (
@@ -105,6 +158,27 @@ export default function RosControls({
   ) => {
     void request(method, path, body, confirmed).catch(() => {});
   };
+  const readManualOnConnect = useEffectEvent(() =>
+    run("GET", "/api/manual/status"),
+  );
+  useLayoutEffect(() => {
+    manualSession.active = true;
+    setManual(null);
+    setManualMessage("");
+    setManualActivity(null);
+    setConfirm((pending) =>
+      pending?.path.startsWith("/api/manual/") ? null : pending,
+    );
+    const revision = ++manualSession.revision;
+    if (ready)
+      queueMicrotask(() => {
+        if (manualSession.active && revision === manualSession.revision)
+          readManualOnConnect();
+      });
+    return () => {
+      manualSession.active = false;
+    };
+  }, [manualSession, ready]);
   function parsed() {
     const body: unknown = JSON.parse(text);
     if (!body || typeof body !== "object" || Array.isArray(body))
@@ -147,7 +221,6 @@ export default function RosControls({
             disabled={busy || confirm !== null}
             onChange={(e) => {
               setRosTransport(e.target.value as RosTransport);
-              setManual(null);
               setText("");
               setReport(null);
             }}
@@ -368,15 +441,19 @@ export default function RosControls({
         </div>
       )}
       <h3>四轴手动泵控</h3>
+      <p className="caption" role="status">
+        {manualLabel}
+        {manualMessage && ` · ${manualMessage}`}
+      </p>
       <div className="inline-form">
         <button
-          disabled={!ready || busy}
-          onClick={() => run("GET", "/api/manual/status")}
-        >
-          读取手动状态
-        </button>
-        <button
-          disabled={!ready || busy || protectedOutputs}
+          disabled={
+            !ready ||
+            busy ||
+            manualActivity === "stop" ||
+            protectedOutputs ||
+            manual?.enabled === true
+          }
           onClick={() =>
             setConfirm({
               label: "开启手动模式",
@@ -388,11 +465,24 @@ export default function RosControls({
           开启手动模式
         </button>
         <button
-          disabled={!ready}
+          disabled={
+            !ready ||
+            busy ||
+            manualActivity === "stop" ||
+            manual?.enabled === false
+          }
           onClick={() => run("POST", "/api/manual/mode", { enabled: false })}
         >
           退出手动模式
         </button>
+        <button
+          disabled={!ready || busy || manualActivity !== null}
+          onClick={() => run("GET", "/api/manual/status")}
+        >
+          刷新手动状态
+        </button>
+      </div>
+      <div className="inline-form">
         <label>
           泵轴
           <select value={axis} onChange={(e) => setAxis(e.target.value)}>

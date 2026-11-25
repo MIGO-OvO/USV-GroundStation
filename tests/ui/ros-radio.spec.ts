@@ -7,6 +7,7 @@ for (const width of [1440, 600]) {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.addInitScript((snapshot) => {
+      localStorage.setItem("usv.ros.transport", "mavlink");
       localStorage.setItem(
         "usv.preferences",
         JSON.stringify({
@@ -18,7 +19,10 @@ for (const width of [1440, 600]) {
         }),
       );
       const calls: unknown[] = [];
+      let manualEnabled = false;
+      let cancelPump: ((error: Error) => void) | undefined;
       snapshot.link = "connected";
+      snapshot.payload_online = true;
       snapshot.telemetry.system_id = 1;
       Object.assign(window, {
         isTauri: true,
@@ -36,7 +40,11 @@ for (const width of [1440, 600]) {
             if (command === "station_snapshot") return snapshot;
             if (command === "ros_control") {
               calls.push(args);
-              const request = args.request as { path: string; method: string };
+              const request = args.request as {
+                path: string;
+                method: string;
+                body: { enabled?: boolean; axis?: string };
+              };
               if (
                 request.path === "/api/pid/config" &&
                 request.method === "GET"
@@ -54,8 +62,24 @@ for (const width of [1440, 600]) {
               if (request.path === "/api/manual/status")
                 return {
                   success: true,
-                  data: { enabled: true, automation_active: false },
+                  data: { enabled: manualEnabled, automation_active: false },
                 };
+              if (request.path === "/api/manual/mode") {
+                manualEnabled = request.body.enabled === true;
+                return {
+                  success: true,
+                  data: { enabled: manualEnabled, automation_active: false },
+                };
+              }
+              if (request.path === "/api/manual/pump-step") {
+                if (request.body.axis === "Z")
+                  return new Promise((_resolve, reject) => {
+                    cancelPump = reject;
+                  });
+                return { success: true, data: { controller_reply: "CMD_OK" } };
+              }
+              if (request.path === "/api/manual/stop-all")
+                cancelPump?.(new Error("已由停止操作取消"));
               return { success: true, data: {} };
             }
             return null;
@@ -65,9 +89,9 @@ for (const width of [1440, 600]) {
     }, structuredClone(emptySnapshot));
     await page.goto("/");
     await page.getByRole("button", { name: "连接与设置" }).click();
-    await page
-      .getByRole("combobox", { name: "配置与控制通信" })
-      .selectOption("mavlink");
+    await expect(
+      page.getByText("手动模式已关闭", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "读取PID 参数" }).click();
     await expect(
       page.getByRole("textbox", { name: "PID 参数 JSON" }),
@@ -76,14 +100,28 @@ for (const width of [1440, 600]) {
       .getByRole("textbox", { name: "PID 参数 JSON" })
       .fill('{"Kp":0.2,"Ki":0.015,"Kd":0.06,"output_min":1,"output_max":8}');
     await page.getByRole("button", { name: "保存PID 参数" }).click();
-    await page.getByRole("button", { name: "读取手动状态" }).click();
-    await page.getByRole("spinbutton", { name: "角度 °" }).fill("1800");
-    await page.getByRole("button", { name: "运行泵", exact: true }).click();
-    await expect(
-      page.getByRole("dialog", { name: "确认设备操作" }),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "开启手动模式" }).click();
     await page.getByRole("button", { name: "确认执行" }).click();
+    await page.getByRole("spinbutton", { name: "角度 °" }).fill("1800");
+    const runPump = page.getByRole("button", { name: "运行泵", exact: true });
+    for (const axis of ["X", "Y", "Z"]) {
+      await page.getByRole("combobox", { name: "泵轴" }).selectOption(axis);
+      await runPump.click();
+      await page.getByRole("button", { name: "确认执行" }).click();
+      if (axis !== "Z")
+        await expect(
+          page.getByText(`${axis} 轴指令已获控制板确认`),
+        ).toBeVisible();
+    }
+    await expect(runPump).toBeDisabled();
     await page.getByRole("button", { name: "全泵停止" }).click();
+    await expect(page.getByText("全泵停止已确认")).toBeVisible();
+    await expect(runPump).toBeEnabled();
+    await page.getByRole("button", { name: "退出手动模式" }).click();
+    await expect(
+      page.getByText("手动模式已关闭", { exact: true }),
+    ).toBeVisible();
+    await expect(runPump).toBeDisabled();
     const control = page.locator(".ros-controls");
     await control.scrollIntoViewIfNeeded();
     await page.screenshot({
@@ -91,8 +129,23 @@ for (const width of [1440, 600]) {
       fullPage: true,
     });
     const calls = await page.evaluate(
-      () => (window as unknown as { radioCalls: unknown[] }).radioCalls,
+      () =>
+        (window as unknown as {
+          radioCalls: { transport: string; request: { path: string } }[];
+        }).radioCalls,
     );
+    const manualPaths = calls
+      .map(({ request }) => request.path)
+      .filter((path) => path.startsWith("/api/manual/"));
+    expect(manualPaths).toEqual([
+      "/api/manual/status",
+      "/api/manual/mode",
+      "/api/manual/pump-step",
+      "/api/manual/pump-step",
+      "/api/manual/pump-step",
+      "/api/manual/stop-all",
+      "/api/manual/mode",
+    ]);
     expect(calls).toContainEqual(
       expect.objectContaining({
         transport: "mavlink",
@@ -103,11 +156,7 @@ for (const width of [1440, 600]) {
         }),
       }),
     );
-    expect(
-      calls.every(
-        (call) => (call as { transport: string }).transport === "mavlink",
-      ),
-    ).toBe(true);
+    expect(calls.every((call) => call.transport === "mavlink")).toBe(true);
     expect(
       await control.evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
