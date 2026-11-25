@@ -102,7 +102,13 @@ for (const width of [1440, 600]) {
     await page.getByRole("button", { name: "保存PID 参数" }).click();
     await page.getByRole("button", { name: "开启手动模式" }).click();
     await page.getByRole("button", { name: "确认执行" }).click();
-    await page.getByRole("spinbutton", { name: "角度 °" }).fill("1800");
+    const angleInput = page.getByRole("spinbutton", { name: "角度 °" });
+    await angleInput.fill("10");
+    await expect(angleInput).toHaveJSProperty("validationMessage", "");
+    await expect(
+      page.getByRole("spinbutton", { name: "转速 RPM" }),
+    ).toHaveJSProperty("validationMessage", "");
+    await angleInput.fill("1800");
     const runPump = page.getByRole("button", { name: "运行泵", exact: true });
     for (const axis of ["X", "Y", "Z"]) {
       await page.getByRole("combobox", { name: "泵轴" }).selectOption(axis);

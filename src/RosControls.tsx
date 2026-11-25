@@ -507,6 +507,7 @@ export default function RosControls({
             type="number"
             min={0.01}
             max={100}
+            step="any"
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
           />
@@ -517,6 +518,7 @@ export default function RosControls({
             type="number"
             min={0.01}
             max={99999}
+            step="any"
             value={angle}
             disabled={continuous}
             onChange={(e) => setAngle(Number(e.target.value))}
