@@ -25,7 +25,7 @@ import type {
   Intent,
   SendIntent,
 } from "./types";
-import { useStation, native, object, call } from "./backend";
+import { useStation, native, android, object, call } from "./backend";
 import {
   field,
   modes,
@@ -43,6 +43,7 @@ import PayloadWorkspace, {
 } from "./PayloadWorkspace";
 import Diagnostics from "./Diagnostics";
 import Settings from "./Settings";
+import WindowControls from "./WindowControls";
 import { prepareRecording, recordingKind } from "./recording";
 
 type Workspace =
@@ -457,9 +458,13 @@ export default function App() {
     { key: "diagnostics", label: "诊断", icon: Radio },
   ] as const;
   const locked = s.safety.emergency_latched || s.safety.outputs_unknown;
+  const desktopChrome = native && !android;
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header
+        className={`app-header${desktopChrome ? " app-header-desktop" : ""}`}
+        data-tauri-drag-region={desktopChrome ? "deep" : undefined}
+      >
         <div className="brand">
           <Compass size={24} strokeWidth={1.6} />
           <strong>
@@ -500,6 +505,7 @@ export default function App() {
           <OctagonAlert size={19} />
           急停
         </button>
+        {desktopChrome && <WindowControls notify={notify} />}
       </header>
       <nav className="app-nav" aria-label="主工作区">
         {nav.map(({ key, label, icon: Icon }) => (

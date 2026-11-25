@@ -9,16 +9,12 @@ import {
   type RosTransport,
 } from "./rosAccess";
 import { Confirm } from "./ui";
-import "./RosControls.css";
-
-const topics = {
-  pid: ["PID 参数", "/api/pid/config"],
-  offsets: ["相对零点", "/api/calibration/offsets"],
-  presets: ["采样预设", "/api/preset/auto/"],
-  waypoints: ["航点采样配置", "/api/waypoint-sampling"],
-  hardware: ["硬件设置", "/api/hardware/config"],
-} as const;
-type Topic = keyof typeof topics;
+import RosConfigEditor, {
+  configTopics,
+  isConfig,
+  useConfigDraft,
+  type ConfigTopic,
+} from "./RosConfigEditor";
 
 export default function RosControls({
   s,
@@ -30,15 +26,15 @@ export default function RosControls({
   notify: Notify;
 }) {
   const transport = useRosTransport();
-  const [topic, setTopic] = useState<Topic>("pid");
+  const [topic, setTopic] = useState<ConfigTopic>("pid");
   const [name, setName] = useState("");
-  const [text, setText] = useState("");
+  const config = useConfigDraft();
   const [report, setReport] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [axis, setAxis] = useState("X");
   const [direction, setDirection] = useState("F");
-  const [speed, setSpeed] = useState(10);
-  const [angle, setAngle] = useState(90);
+  const [speed, setSpeed] = useState(8);
+  const [angle, setAngle] = useState(360);
   const [continuous, setContinuous] = useState(false);
   const [injectionSpeed, setInjectionSpeed] = useState(20);
   const [manual, setManual] = useState<Record<string, unknown> | null>(null);
@@ -75,10 +71,11 @@ export default function RosControls({
     !protectedOutputs &&
     manual?.enabled === true &&
     manual.automation_active === false;
-  const path = topic === "presets" ? topics[topic][1] + name : topics[topic][1];
-  function editTopic(value: Topic) {
+  const [configLabel, configPath] = configTopics[topic];
+  const path = topic === "presets" ? configPath + name : configPath;
+  function editTopic(value: ConfigTopic) {
     setTopic(value);
-    setText("");
+    config.replaceText("");
     setReport(null);
   }
   async function request(
@@ -179,36 +176,32 @@ export default function RosControls({
       manualSession.active = false;
     };
   }, [manualSession, ready]);
-  function parsed() {
-    const body: unknown = JSON.parse(text);
-    if (!body || typeof body !== "object" || Array.isArray(body))
-      throw new Error("配置必须是 JSON 对象");
-    return body;
-  }
   async function load() {
     try {
       const result = await request("GET", path);
       const data = unpack(result);
-      setText(
+      if (!isConfig(data)) {
+        notify("ROS 返回的配置应为对象。", true);
+        return;
+      }
+      config.replaceText(
         JSON.stringify(topic === "offsets" ? { offsets: data } : data, null, 2),
       );
+      setReport(null);
     } catch {
       /* The request already reported the error. */
     }
   }
   function save(apply = false) {
-    try {
-      const body = parsed();
-      if (apply)
-        setConfirm({
-          label: "应用硬件设置并重新连接设备",
-          path: "/api/hardware/apply",
-          body,
-        });
-      else run("POST", path, body);
-    } catch (error) {
-      notify(String(error), true);
-    }
+    const body = config.validated();
+    if (!body) return;
+    if (apply)
+      setConfirm({
+        label: "应用硬件设置并重新连接设备",
+        path: "/api/hardware/apply",
+        body,
+      });
+    else run("POST", path, body);
   }
   return (
     <section className="ros-controls">
@@ -221,7 +214,7 @@ export default function RosControls({
             disabled={busy || confirm !== null}
             onChange={(e) => {
               setRosTransport(e.target.value as RosTransport);
-              setText("");
+              config.replaceText("");
               setReport(null);
             }}
           >
@@ -246,9 +239,9 @@ export default function RosControls({
           <select
             value={topic}
             disabled={busy || confirm !== null}
-            onChange={(e) => editTopic(e.target.value as Topic)}
+            onChange={(e) => editTopic(e.target.value as ConfigTopic)}
           >
-            {Object.entries(topics).map(([key, value]) => (
+            {Object.entries(configTopics).map(([key, value]) => (
               <option key={key} value={key}>
                 {value[0]}
               </option>
@@ -263,7 +256,7 @@ export default function RosControls({
               disabled={busy || confirm !== null}
               onChange={(e) => {
                 setName(e.target.value);
-                setText("");
+                config.replaceText("");
               }}
               maxLength={64}
             />
@@ -273,13 +266,15 @@ export default function RosControls({
           disabled={!ready || busy || (topic === "presets" && !name)}
           onClick={() => void load()}
         >
-          读取{topics[topic][0]}
+          读取{configLabel}
         </button>
         <button
-          disabled={!ready || busy || !text || (topic === "presets" && !name)}
+          disabled={
+            !ready || busy || !config.data || (topic === "presets" && !name)
+          }
           onClick={() => save()}
         >
-          保存{topics[topic][0]}
+          保存{configLabel}
         </button>
         {topic === "presets" && (
           <>
@@ -320,28 +315,25 @@ export default function RosControls({
               列出串口
             </button>
             <button
-              disabled={!ready || busy || !text || protectedOutputs}
+              disabled={!ready || busy || !config.data || protectedOutputs}
               onClick={() => save(true)}
             >
               应用硬件设置
             </button>
             <button
-              disabled={!ready || busy || !text || protectedOutputs}
+              disabled={!ready || busy || !config.data || protectedOutputs}
               onClick={() => {
-                try {
-                  const hw = object(parsed());
-                  setConfirm({
-                    label: "测试泵控串口",
-                    path: "/api/hardware/test-pump-port",
-                    body: {
-                      serial_port: hw.pump_serial_port,
-                      baudrate: hw.pump_baudrate,
-                      timeout: hw.pump_timeout,
-                    },
-                  });
-                } catch (error) {
-                  notify(String(error), true);
-                }
+                const hw = config.validated();
+                if (!hw) return;
+                setConfirm({
+                  label: "测试泵控串口",
+                  path: "/api/hardware/test-pump-port",
+                  body: {
+                    serial_port: hw.pump_serial_port,
+                    baudrate: hw.pump_baudrate,
+                    timeout: hw.pump_timeout,
+                  },
+                });
               }}
             >
               测试泵控串口
@@ -349,12 +341,11 @@ export default function RosControls({
           </>
         )}
       </div>
-      <textarea
-        className="json-editor"
-        aria-label={`${topics[topic][0]} JSON`}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        spellCheck={false}
+      <RosConfigEditor
+        draft={config}
+        topic={topic}
+        label={configLabel}
+        disabled={busy || confirm !== null}
       />
       {topic === "offsets" && (
         <div className="inline-form">

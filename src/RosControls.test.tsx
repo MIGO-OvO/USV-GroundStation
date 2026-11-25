@@ -47,14 +47,10 @@ function setup() {
 it("reads and saves PID over radio while retaining the HTTP option", async () => {
   setup();
   fireEvent.click(screen.getByRole("button", { name: "读取PID 参数" }));
-  await waitFor(() =>
-    expect(screen.getByRole("textbox", { name: "PID 参数 JSON" })).toHaveValue(
-      JSON.stringify({ Kp: 0.14 }, null, 2),
-    ),
-  );
-  fireEvent.change(screen.getByRole("textbox", { name: "PID 参数 JSON" }), {
-    target: { value: '{"Kp":0.2}' },
-  });
+  const kp = await screen.findByRole("spinbutton", { name: "比例增益 Kp" });
+  expect(kp).toHaveValue(0.14);
+  expect(screen.getByLabelText("PID 参数 JSON")).not.toBeVisible();
+  fireEvent.change(kp, { target: { value: "0.2" } });
   fireEvent.click(screen.getByRole("button", { name: "保存PID 参数" }));
   await waitFor(() =>
     expect(api.call).toHaveBeenLastCalledWith(
@@ -92,10 +88,21 @@ it("wraps offsets correctly and leaves stop enabled during an outstanding reques
     data: { X: 1, Y: 2, Z: 3, A: 4 },
   });
   fireEvent.click(screen.getByRole("button", { name: "读取相对零点" }));
+  const offset = await screen.findByRole("spinbutton", { name: "A 轴（°）" });
+  expect(offset).toHaveValue(4);
+  fireEvent.change(offset, { target: { value: "4.5" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存相对零点" }));
+  expect(api.call).toHaveBeenLastCalledWith(
+    "ros_control",
+    expect.objectContaining({
+      request: expect.objectContaining({
+        path: "/api/calibration/offsets",
+        body: { offsets: { X: 1, Y: 2, Z: 3, A: 4.5 } },
+      }),
+    }),
+  );
   await waitFor(() =>
-    expect(screen.getByRole("textbox", { name: "相对零点 JSON" })).toHaveValue(
-      JSON.stringify({ offsets: { X: 1, Y: 2, Z: 3, A: 4 } }, null, 2),
-    ),
+    expect(screen.getByRole("button", { name: "刷新手动状态" })).toBeEnabled(),
   );
   api.call.mockImplementationOnce(() => new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "刷新手动状态" }));
@@ -107,6 +114,58 @@ it("wraps offsets correctly and leaves stop enabled during an outstanding reques
       request: expect.objectContaining({ path: "/api/manual/stop-all" }),
     }),
   );
+});
+
+it("edits preset steps and numbered waypoints in their original shape", async () => {
+  setup();
+  await screen.findByText("手动模式已关闭");
+  const topic = screen.getByRole("combobox", { name: "配置项目" });
+  const step = { A: { enable: "E", direction: "F", speed: "8", angle: "360" } };
+  fireEvent.change(topic, { target: { value: "presets" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "预设名称" }), {
+    target: { value: "sample" },
+  });
+  api.call.mockResolvedValueOnce({
+    success: true,
+    data: { loop_count: 2, steps: [step] },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "读取采样预设" }));
+  fireEvent.click(await screen.findByText("步骤 1", { selector: "summary" }));
+  fireEvent.click(screen.getByText("A 轴", { selector: "summary" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "方向" }), {
+    target: { value: "B" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存采样预设" }));
+  expect(api.call).toHaveBeenLastCalledWith(
+    "ros_control",
+    expect.objectContaining({
+      request: expect.objectContaining({
+        path: "/api/preset/auto/sample",
+        body: { loop_count: 2, steps: [{ A: { ...step.A, direction: "B" } }] },
+      }),
+    }),
+  );
+
+  await waitFor(() => expect(topic).toBeEnabled());
+  fireEvent.change(topic, { target: { value: "waypoints" } });
+  const waypoint = { enabled: true, loop_count: 1, on_fail: "LOITER" };
+  api.call.mockResolvedValueOnce({ success: true, data: { "7": waypoint } });
+  fireEvent.click(screen.getByRole("button", { name: "读取航点采样配置" }));
+  fireEvent.click(await screen.findByText("航点 7", { selector: "summary" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "失败策略" }), {
+    target: { value: "SKIP" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存航点采样配置" }));
+  expect(api.call).toHaveBeenLastCalledWith(
+    "ros_control",
+    expect.objectContaining({
+      request: expect.objectContaining({
+        path: "/api/waypoint-sampling",
+        body: { "7": { ...waypoint, on_fail: "SKIP" } },
+      }),
+    }),
+  );
+  await waitFor(() => expect(topic).toBeEnabled());
 });
 
 it("uses the mode reply for successive pump steps even when an older status read finishes later", async () => {

@@ -11,7 +11,9 @@ import type {
 import { call, useRos, unpack, native, android, object } from "./backend";
 import FirmwareDialog from "./FirmwareDialog";
 import RosControls from "./RosControls";
+import RosConfigEditor, { isConfig, useConfigDraft } from "./RosConfigEditor";
 import { serialLabel, useSerialPorts } from "./serial";
+import { Metric } from "./ui";
 
 export default function Settings({
   s,
@@ -55,11 +57,14 @@ export default function Settings({
   const recognizedLinks = serialPorts.filter(
     (device) =>
       !device.bootloader_hint &&
-      (device.kind === "flight_controller" || device.kind === "telemetry_radio"),
+      (device.kind === "flight_controller" ||
+        device.kind === "telemetry_radio"),
   );
   const serialPort =
     serial ||
-    (!manualSerial && recognizedLinks.length === 1 ? recognizedLinks[0].port : "");
+    (!manualSerial && recognizedLinks.length === 1
+      ? recognizedLinks[0].port
+      : "");
   const serialDevice = serialPorts.find((device) => device.port === serialPort);
   const serialBaud =
     baud ?? (serialDevice?.kind === "telemetry_radio" ? 57600 : 115200);
@@ -83,7 +88,7 @@ export default function Settings({
     setTarget(s.saved_connection?.target_system?.toString() ?? "");
   }, [previous, s.saved_connection?.target_system]);
   const [ros, setRos] = useState(preferences.rosUrl);
-  const [configText, setConfigText] = useState("");
+  const configDraft = useConfigDraft();
   const [configLoaded, setConfigLoaded] = useState(false);
   const [mapStats, setMapStats] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -120,7 +125,9 @@ export default function Settings({
         baseUrl: preferences.rosUrl,
         path: "/api/config",
       });
-      setConfigText(JSON.stringify(unpack(data), null, 2));
+      const config = unpack(data);
+      if (!isConfig(config)) throw new Error("ROS 返回的配置应为对象。");
+      configDraft.replaceText(JSON.stringify(config, null, 2));
       setConfigLoaded(true);
       notify("已读取 ROS 当前配置");
     } catch (e) {
@@ -130,11 +137,10 @@ export default function Settings({
     }
   }
   async function saveConfig() {
+    const body = configDraft.validated();
+    if (!body) return;
     setBusy(true);
     try {
-      const body: unknown = JSON.parse(configText);
-      if (!body || typeof body !== "object" || Array.isArray(body))
-        throw new Error("配置必须是 JSON 对象");
       await call("ros_post", {
         baseUrl: preferences.rosUrl,
         path: "/api/config",
@@ -149,6 +155,8 @@ export default function Settings({
     }
   }
   const styles = object(unpack(mapConfig.data)).styles;
+  const offsets = object(unpack(calibration.data));
+  const configuredAxes = object(calibration.data).configured_axes;
   return (
     <section className="workspace settings">
       <header className="workspace-heading">
@@ -245,7 +253,9 @@ export default function Settings({
                       </option>
                     ))}
                     {!manualSerial && serialPort && !serialDevice && (
-                      <option value={serialPort}>{serialPort}（未检测到）</option>
+                      <option value={serialPort}>
+                        {serialPort}（未检测到）
+                      </option>
                     )}
                     <option value="manual">手动输入…</option>
                   </select>
@@ -284,7 +294,9 @@ export default function Settings({
             </label>
           </div>
           {kind === "serial" && scanError && (
-            <p className="inline-error" role="alert">{scanError}</p>
+            <p className="inline-error" role="alert">
+              {scanError}
+            </p>
           )}
           {kind === "serial" && serialDevice?.bootloader_hint && (
             <p className="caption">此串口处于引导模式，可打开固件刷写。</p>
@@ -295,7 +307,8 @@ export default function Settings({
               disabled={
                 !native ||
                 (kind === "serial" &&
-                  (!serialPort.trim() || Boolean(serialDevice?.bootloader_hint)))
+                  (!serialPort.trim() ||
+                    Boolean(serialDevice?.bootloader_hint)))
               }
               onClick={() => void connect()}
             >
@@ -378,6 +391,57 @@ export default function Settings({
             </button>
           </div>
         </section>
+        {configLoaded && (
+          <section aria-labelledby="ros-sampling-config">
+            <div className="section-heading">
+              <h2 id="ros-sampling-config">ROS 采样配置</h2>
+              <button
+                className="primary"
+                disabled={busy || !configDraft.data}
+                onClick={() => void saveConfig()}
+              >
+                <Save size={16} />
+                保存配置
+              </button>
+            </div>
+            {config.error && <p className="inline-error">{config.error}</p>}
+            <RosConfigEditor
+              draft={configDraft}
+              topic="general"
+              label="ROS 配置"
+              disabled={busy}
+            />
+            <details className="ros-config-readings">
+              <summary>Web 校准零点</summary>
+              {calibration.error ? (
+                <p className="inline-error">{calibration.error}</p>
+              ) : (
+                <div className="ros-config-fields">
+                  {["X", "Y", "Z", "A"].map((axis) => {
+                    const angle = offsets[axis];
+                    const configured =
+                      !Array.isArray(configuredAxes) ||
+                      configuredAxes.includes(axis);
+                    return (
+                      <Metric
+                        key={axis}
+                        label={`${axis} 轴`}
+                        small
+                        value={
+                          typeof angle === "number"
+                            ? configured
+                              ? `${angle}°`
+                              : "未设零点"
+                            : "—"
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </details>
+          </section>
+        )}
         <RosControls s={s} baseUrl={preferences.rosUrl} notify={notify} />
         <section>
           <h2>
@@ -473,33 +537,6 @@ export default function Settings({
             WGS 84。
           </p>
         </section>
-        {configLoaded && (
-          <section>
-            <div className="section-heading">
-              <h2>ROS 采样配置</h2>
-              <button
-                className="primary"
-                disabled={busy || !configText}
-                onClick={() => void saveConfig()}
-              >
-                <Save size={16} />
-                保存配置
-              </button>
-            </div>
-            {config.error && <p className="inline-error">{config.error}</p>}
-            <textarea
-              className="json-editor"
-              aria-label="ROS 配置 JSON"
-              value={configText}
-              onChange={(e) => setConfigText(e.target.value)}
-              spellCheck={false}
-            />
-            <details>
-              <summary>Web 校准零点</summary>
-              <pre>{JSON.stringify(calibration.data, null, 2)}</pre>
-            </details>
-          </section>
-        )}
         <section>
           <h2>应用信息</h2>
           <label className="theme-setting">

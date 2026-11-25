@@ -276,6 +276,29 @@ small {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
+.app-header-desktop {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto auto;
+  user-select: none;
+}
+.window-controls {
+  display: flex;
+  align-self: stretch;
+  border-left: 1px solid var(--line);
+}
+.window-controls button {
+  width: 44px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+.window-controls button:focus-visible {
+  outline-offset: -3px;
+}
+.window-controls .window-close:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
 .brand {
   display: flex;
   gap: 10px;
@@ -1734,10 +1757,10 @@ pre {
   .metric {
     padding: 10px 14px;
   }
-  .metric:nth-child(3) {
+  .navigation-metrics > .metric:nth-child(3) {
     border-left: 0;
   }
-  .metric:nth-child(n + 3) {
+  .navigation-metrics > .metric:nth-child(n + 3) {
     border-top: 1px solid var(--line);
   }
   .planner-content {
@@ -1783,6 +1806,9 @@ pre {
     grid-column: 1;
     padding: 0 12px;
     gap: 16px;
+  }
+  .window-controls button {
+    width: 36px;
   }
   .brand {
     gap: 5px;
@@ -1892,11 +1918,11 @@ pre {
   .metric strong {
     font-size: 16px;
   }
-  .metric:nth-child(3) {
+  .navigation-metrics > .metric:nth-child(3) {
     border-top: 0;
     border-left: 1px solid var(--line);
   }
-  .metric:last-child {
+  .navigation-metrics > .metric:last-child {
     display: none;
   }
   .map-shell {

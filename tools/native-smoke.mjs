@@ -67,6 +67,17 @@ try {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.getByRole('heading', { name: '航行驾驶舱' }).waitFor();
+  const maximize = page.getByRole('button', { name: '最大化窗口' });
+  const restore = page.getByRole('button', { name: '还原窗口' });
+  const windowState = (property) => page.evaluate(property => window.__TAURI_INTERNALS__
+    .invoke(`plugin:window|${property}`, { label: 'main' }), property);
+  assert.equal(await windowState('is_decorated'), false);
+  await maximize.click();
+  await restore.waitFor();
+  assert.equal(await windowState('is_maximized'), true);
+  await restore.click();
+  await maximize.waitFor();
+  assert.equal(await windowState('is_maximized'), false);
   const snapshot = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
   assert.equal(snapshot.link, 'disconnected');
   assert.equal(snapshot.telemetry.system_id, null);
@@ -151,7 +162,7 @@ try {
   await new Promise(r => setTimeout(r, 600));
   assert.equal(connections, 2, 'startup must open the connection once');
   assert.deepEqual(pageErrors, [], 'map startup and telemetry must not crash React');
-  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', controlCore: 'live IPC snapshot', connectedDevice: false, profile, enumeratedPorts: serial.length, firmwareMaintenance: 'blocked with a configured MAVLink connection', offlinePolicy: 'preserved across location lookup', mapEvidence, startupAutoConnect: 'one loopback TCP connection after native process restart', manualDisconnect: 'preserved across frontend reload', screenshot: '.impeccable/review/windows-native.png' }));
+  console.log(JSON.stringify({ result: 'passed', surface: 'Windows Tauri/WebView2', titlebar: 'undecorated window, maximize and restore checked', controlCore: 'live IPC snapshot', connectedDevice: false, profile, enumeratedPorts: serial.length, firmwareMaintenance: 'blocked with a configured MAVLink connection', offlinePolicy: 'preserved across location lookup', mapEvidence, startupAutoConnect: 'one loopback TCP connection after native process restart', manualDisconnect: 'preserved across frontend reload', screenshot: '.impeccable/review/windows-native.png' }));
 } finally {
   if (browser) await browser.close();
   if (app.pid) app.kill();

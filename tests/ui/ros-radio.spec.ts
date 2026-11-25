@@ -1,19 +1,44 @@
 import { test, expect } from "@playwright/test";
 import { emptySnapshot } from "../../src/backend";
 
+const hardwareConfig = {
+  pump_serial_port: "/dev/ttyUSB0",
+  pump_baudrate: 115200,
+  pump_timeout: 1,
+  ads_address: "0x40",
+  spectro_channel: 2,
+  mux: "AIN0_AVSS",
+  gain: 1,
+  vref_mode: "AVDD",
+  adc_rate: 90,
+  publish_rate: 90,
+  spectro_output_hz: 10,
+  reference_voltage: 0,
+  baseline_voltage: 0,
+  continuous_mode: true,
+  auto_start: false,
+  i2c_mapping: { X: 0, Y: 3, Z: 4, A: 7 },
+  board_revision: { capabilities: ["angle", "spectro"], reserved: null },
+};
+
 for (const width of [1440, 600]) {
   test(`ROS radio controls at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.addInitScript((snapshot) => {
+    const fixture = {
+      snapshot: structuredClone(emptySnapshot),
+      hardware: hardwareConfig,
+      theme: width === 600 ? "dark" : "light",
+    };
+    await page.addInitScript(({ snapshot, hardware, theme }) => {
       localStorage.setItem("usv.ros.transport", "mavlink");
       localStorage.setItem(
         "usv.preferences",
         JSON.stringify({
           rosUrl: "http://unreachable.invalid:5000",
           mapEnabled: false,
-          theme: "light",
+          theme,
           mapSource: "google",
           mapStyle: "gsatellite",
         }),
@@ -59,6 +84,26 @@ for (const width of [1440, 600]) {
                     output_max: 8,
                   },
                 };
+              if (
+                request.path === "/api/hardware/config" &&
+                request.method === "GET"
+              )
+                return { success: true, data: hardware };
+              if (request.path === "/api/config" && request.method === "GET")
+                return {
+                  mission: { name: "岸边采样" },
+                  sampling: { sample_timeout_s: 30 },
+                  hardware,
+                };
+              if (
+                request.path === "/api/calibration/offsets" &&
+                request.method === "GET"
+              )
+                return {
+                  success: true,
+                  data: { X: 0, Y: 0, Z: 0, A: 3.25 },
+                  configured_axes: ["A"],
+                };
               if (request.path === "/api/manual/status")
                 return {
                   success: true,
@@ -76,7 +121,10 @@ for (const width of [1440, 600]) {
                   return new Promise((_resolve, reject) => {
                     cancelPump = reject;
                   });
-                return { success: true, data: { controller_reply: "CMD_OK" } };
+                return {
+                  success: true,
+                  data: { controller_reply: "CMD_OK" },
+                };
               }
               if (request.path === "/api/manual/stop-all")
                 cancelPump?.(new Error("已由停止操作取消"));
@@ -86,28 +134,66 @@ for (const width of [1440, 600]) {
           },
         },
       });
-    }, structuredClone(emptySnapshot));
+    }, fixture);
     await page.goto("/");
     await page.getByRole("button", { name: "连接与设置" }).click();
     await expect(
       page.getByText("手动模式已关闭", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "读取PID 参数" }).click();
+    const kp = page.getByRole("spinbutton", { name: "比例增益 Kp" });
+    const savePid = page.getByRole("button", { name: "保存PID 参数" });
+    await expect(kp).toHaveValue("0.14");
+    await expect(page.getByLabel("PID 参数 JSON")).toBeHidden();
+    await kp.fill("");
+    await savePid.click();
+    await expect(kp).toBeFocused();
+    await kp.fill("0.2");
+    await savePid.click();
+
+    const topic = page.getByRole("combobox", { name: "配置项目" });
+    await topic.selectOption("hardware");
+    await page.getByRole("button", { name: "读取硬件设置" }).click();
+    await expect(page.getByRole("textbox", { name: "串口设备" })).toHaveValue(
+      "/dev/ttyUSB0",
+    );
     await expect(
-      page.getByRole("textbox", { name: "PID 参数 JSON" }),
-    ).toContainText('"Kp": 0.14');
-    await page
-      .getByRole("textbox", { name: "PID 参数 JSON" })
-      .fill('{"Kp":0.2,"Ki":0.015,"Kd":0.06,"output_min":1,"output_max":8}');
-    await page.getByRole("button", { name: "保存PID 参数" }).click();
+      page.getByRole("spinbutton", { name: "ADC 采样率（SPS）" }),
+    ).toHaveValue("90");
+    const autoStart = page.getByRole("checkbox", { name: "启动时采集" });
+    await expect(autoStart).not.toBeChecked();
+    await autoStart.check();
+    const channel = page.getByRole("spinbutton", { name: "A 轴", exact: true });
+    await expect(channel).toHaveValue("7");
+    await channel.fill("5");
+    await page.locator(".ros-config-editor").screenshot({
+      path: `.impeccable/review/ros-hardware-${width}.png`,
+    });
+    await page.getByText("高级 JSON", { exact: true }).click();
+    const json = page.getByRole("textbox", { name: "硬件设置 JSON" });
+    await expect(json).toBeVisible();
+    const draft = {
+      ...hardwareConfig,
+      auto_start: true,
+      i2c_mapping: { ...hardwareConfig.i2c_mapping, A: 5 },
+    };
+    expect(JSON.parse(await json.inputValue())).toEqual(draft);
+    await json.fill(JSON.stringify({ ...draft, pump_baudrate: 460800 }));
+    await page.getByText("高级 JSON", { exact: true }).click();
+    await expect(page.getByRole("spinbutton", { name: "波特率" })).toHaveValue(
+      "460800",
+    );
+    await page.getByRole("button", { name: "保存硬件设置" }).click();
+    await topic.selectOption("pid");
     await page.getByRole("button", { name: "开启手动模式" }).click();
     await page.getByRole("button", { name: "确认执行" }).click();
     const angleInput = page.getByRole("spinbutton", { name: "角度 °" });
+    const speedInput = page.getByRole("spinbutton", { name: "转速 RPM" });
+    await expect(angleInput).toHaveValue("360");
+    await expect(speedInput).toHaveValue("8");
     await angleInput.fill("10");
     await expect(angleInput).toHaveJSProperty("validationMessage", "");
-    await expect(
-      page.getByRole("spinbutton", { name: "转速 RPM" }),
-    ).toHaveJSProperty("validationMessage", "");
+    await expect(speedInput).toHaveJSProperty("validationMessage", "");
     await angleInput.fill("1800");
     const runPump = page.getByRole("button", { name: "运行泵", exact: true });
     for (const axis of ["X", "Y", "Z"]) {
@@ -134,12 +220,19 @@ for (const width of [1440, 600]) {
       path: `.impeccable/review/ros-radio-${width}.png`,
       fullPage: true,
     });
-    const calls = await page.evaluate(
-      () =>
-        (window as unknown as {
-          radioCalls: { transport: string; request: { path: string } }[];
-        }).radioCalls,
-    );
+    const readCalls = () =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              radioCalls: {
+                transport: string;
+                request: { method: string; path: string; body: unknown };
+              }[];
+            }
+          ).radioCalls,
+      );
+    const calls = await readCalls();
     const manualPaths = calls
       .map(({ request }) => request.path)
       .filter((path) => path.startsWith("/api/manual/"));
@@ -152,13 +245,27 @@ for (const width of [1440, 600]) {
       "/api/manual/stop-all",
       "/api/manual/mode",
     ]);
+    expect(
+      calls
+        .filter(
+          ({ request }) =>
+            request.method === "POST" && request.path === "/api/pid/config",
+        )
+        .map(({ request }) => request.body),
+    ).toEqual([{ Kp: 0.2, Ki: 0.015, Kd: 0.06, output_min: 1, output_max: 8 }]);
+    expect(
+      calls.find(
+        ({ request }) =>
+          request.method === "POST" && request.path === "/api/hardware/config",
+      )?.request.body,
+    ).toEqual({ ...draft, pump_baudrate: 460800 });
     expect(calls).toContainEqual(
       expect.objectContaining({
         transport: "mavlink",
         confirmed: true,
         request: expect.objectContaining({
           path: "/api/manual/pump-step",
-          body: expect.objectContaining({ angle_deg: 1800 }),
+          body: expect.objectContaining({ speed_rpm: 8, angle_deg: 1800 }),
         }),
       }),
     );
@@ -183,6 +290,29 @@ for (const width of [1440, 600]) {
           ).radioCalls.at(-1)?.transport,
       ),
     ).toBe("http");
+    await page.getByRole("button", { name: "读取配置", exact: true }).click();
+    const general = page.getByRole("region", { name: "ROS 采样配置" });
+    await general.getByText("采样任务", { exact: true }).click();
+    const missionName = general.getByRole("textbox", {
+      name: "名称",
+      exact: true,
+    });
+    await expect(missionName).toHaveValue("岸边采样");
+    await expect(general.getByLabel("ROS 配置 JSON")).toBeHidden();
+    await missionName.fill("岸边复测");
+    await general.getByRole("button", { name: "保存配置" }).click();
+    expect(
+      (await readCalls()).find(
+        ({ request }) =>
+          request.method === "POST" && request.path === "/api/config",
+      )?.request.body,
+    ).toEqual({
+      mission: { name: "岸边复测" },
+      sampling: { sample_timeout_s: 30 },
+      hardware: hardwareConfig,
+    });
+    await general.getByText("Web 校准零点").click();
+    await expect(general.getByText("3.25°")).toBeVisible();
     expect(errors).toEqual([]);
   });
 }
