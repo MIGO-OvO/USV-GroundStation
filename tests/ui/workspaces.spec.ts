@@ -28,7 +28,7 @@ for (const viewport of [
     await page
       .getByRole("checkbox", { name: "航点 1 采样", exact: true })
       .check();
-    await page.getByRole("spinbutton", { name: "航点 1 采样超时" }).fill("120");
+    await page.getByRole("spinbutton", { name: "航点 1 旧固件采样时限" }).fill("120");
     await expect(
       page.getByRole("button", { name: "上传并校验" }),
     ).toBeDisabled();

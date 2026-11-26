@@ -93,7 +93,7 @@ const labels: Record<string, string> = {
   sampling_sequence: "采样流程",
   waypoint_sampling: "航点采样配置",
   sampling: "采样参数",
-  sample_timeout_s: "采样超时（秒）",
+  sample_timeout_s: "旧固件采样时限（秒）",
   automation_policy: "自动化策略",
   mapping_profile: "地图采样设置",
   detection_settings: "检测设置",

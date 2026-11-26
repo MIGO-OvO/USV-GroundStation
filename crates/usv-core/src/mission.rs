@@ -62,7 +62,7 @@ impl MissionDraft {
                 || !(-180.0..=180.0).contains(&w.lon)
                 || !(1..=MAX_SAMPLE_TIMEOUT_S).contains(&w.timeout_s)
             {
-                return Err("航点坐标、高度或采样超时无效".into());
+                return Err("航点坐标、高度或旧固件采样时限无效".into());
             }
             let item = MissionItem {
                 seq: items.len() as u16,

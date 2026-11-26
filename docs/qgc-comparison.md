@@ -13,7 +13,7 @@
 | USVPayloadFactGroup | telemetry / Reading | 26 字段、相对校准角、健康和有效帧状态 |
 | 原 QGC 采样控制 | 采样工作区 | 点采样、暂停/恢复/停止、走航、归零、分光、基线 |
 | 四泵 PID / 实时数据 | ROS `/api/manual/status` + MAVLink | PID 原始状态、相对角、有效帧电压/吸光度曲线 |
-| 航点规划 | Planner / MapLibre | 点击、拖动、排序、删除、经纬度及采样超时 |
+| 航点规划 | Planner / MapLibre | 点击、拖动、排序、删除、经纬度及旧固件采样时限 |
 | Mission 上传与下载 | 原生 Rust mission | 分包、重试、ACK 后回读，home 合成差异处理 |
 | 42702 定点采样 | mission items | param1=1、1～255s，实船 `USV_SMPL/USV_DONE` 闭环待验收 |
 | AUTO 暂停/继续/停止 | 模式 + 载荷全 STOP | HOLD 暂停、AUTO 继续，停止保留飞控任务进度 |

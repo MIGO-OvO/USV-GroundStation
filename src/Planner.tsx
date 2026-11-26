@@ -164,7 +164,7 @@ export default function Planner({
                 <tr>
                   <th>航点</th>
                   <th>纬度 / 经度</th>
-                  <th>采样 / 超时 s</th>
+                  <th>采样 / 旧固件时限（秒）</th>
                   <th>排序</th>
                 </tr>
               </thead>
@@ -229,7 +229,7 @@ export default function Planner({
                         定点采样
                       </label>
                       <input
-                        aria-label={`航点 ${i + 1} 采样超时`}
+                        aria-label={`航点 ${i + 1} 旧固件采样时限`}
                         disabled={!w.sample}
                         type="number"
                         min="1"
