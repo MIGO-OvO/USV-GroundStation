@@ -18,6 +18,7 @@
   align-items: center;
   flex: 0 0 auto;
   width: auto;
+  white-space: nowrap;
 }
 .ros-controls input[type="number"] {
   width: 8rem;

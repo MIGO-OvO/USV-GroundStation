@@ -347,102 +347,104 @@ export default function Settings({
             在匹配飞控心跳后固定对端。重新连接只同步状态。
           </p>
         </section>
-        <section>
-          <h2>
-            <Server size={19} />
-            Jetson ROS 服务
-          </h2>
-          <div className="inline-form">
-            <label>
-              Web API 地址
-              <input
-                type="url"
-                value={ros}
-                onChange={(e) => setRos(e.target.value)}
-                placeholder="http://10.42.0.1:5000"
-              />
-            </label>
-            <button
-              onClick={() => {
-                try {
-                  const u = new URL(ros);
-                  if (
-                    !["http:", "https:"].includes(u.protocol) ||
-                    u.username ||
-                    u.password
-                  )
-                    throw new Error("请输入不带凭证的 HTTP 地址");
-                  setPreferences({ ...preferences, rosUrl: u.origin });
-                  notify("ROS 地址已保存");
-                } catch (e) {
-                  notify(String(e), true);
-                }
-              }}
-            >
-              <Save size={16} />
-              保存地址
-            </button>
-            <button
-              disabled={!native || busy}
-              onClick={() => void loadConfig()}
-            >
-              <RefreshCw size={16} />
-              读取配置
-            </button>
-          </div>
-        </section>
-        {configLoaded && (
-          <section aria-labelledby="ros-sampling-config">
-            <div className="section-heading">
-              <h2 id="ros-sampling-config">ROS 采样配置</h2>
+        <div className="settings-ros">
+          <section>
+            <h2>
+              <Server size={19} />
+              Jetson ROS 服务
+            </h2>
+            <div className="inline-form">
+              <label>
+                Web API 地址
+                <input
+                  type="url"
+                  value={ros}
+                  onChange={(e) => setRos(e.target.value)}
+                  placeholder="http://10.42.0.1:5000"
+                />
+              </label>
               <button
-                className="primary"
-                disabled={busy || !configDraft.data}
-                onClick={() => void saveConfig()}
+                onClick={() => {
+                  try {
+                    const u = new URL(ros);
+                    if (
+                      !["http:", "https:"].includes(u.protocol) ||
+                      u.username ||
+                      u.password
+                    )
+                      throw new Error("请输入不带凭证的 HTTP 地址");
+                    setPreferences({ ...preferences, rosUrl: u.origin });
+                    notify("ROS 地址已保存");
+                  } catch (e) {
+                    notify(String(e), true);
+                  }
+                }}
               >
                 <Save size={16} />
-                保存配置
+                保存地址
+              </button>
+              <button
+                disabled={!native || busy}
+                onClick={() => void loadConfig()}
+              >
+                <RefreshCw size={16} />
+                读取配置
               </button>
             </div>
-            {config.error && <p className="inline-error">{config.error}</p>}
-            <RosConfigEditor
-              draft={configDraft}
-              topic="general"
-              label="ROS 配置"
-              disabled={busy}
-            />
-            <details className="ros-config-readings">
-              <summary>Web 校准零点</summary>
-              {calibration.error ? (
-                <p className="inline-error">{calibration.error}</p>
-              ) : (
-                <div className="ros-config-fields">
-                  {["X", "Y", "Z", "A"].map((axis) => {
-                    const angle = offsets[axis];
-                    const configured =
-                      !Array.isArray(configuredAxes) ||
-                      configuredAxes.includes(axis);
-                    return (
-                      <Metric
-                        key={axis}
-                        label={`${axis} 轴`}
-                        small
-                        value={
-                          typeof angle === "number"
-                            ? configured
-                              ? `${angle}°`
-                              : "未设零点"
-                            : "—"
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </details>
           </section>
-        )}
-        <RosControls s={s} baseUrl={preferences.rosUrl} notify={notify} />
+          {configLoaded && (
+            <section aria-labelledby="ros-sampling-config">
+              <div className="section-heading">
+                <h2 id="ros-sampling-config">ROS 采样配置</h2>
+                <button
+                  className="primary"
+                  disabled={busy || !configDraft.data}
+                  onClick={() => void saveConfig()}
+                >
+                  <Save size={16} />
+                  保存配置
+                </button>
+              </div>
+              {config.error && <p className="inline-error">{config.error}</p>}
+              <RosConfigEditor
+                draft={configDraft}
+                topic="general"
+                label="ROS 配置"
+                disabled={busy}
+              />
+              <details className="ros-config-readings">
+                <summary>Web 校准零点</summary>
+                {calibration.error ? (
+                  <p className="inline-error">{calibration.error}</p>
+                ) : (
+                  <div className="ros-config-fields">
+                    {["X", "Y", "Z", "A"].map((axis) => {
+                      const angle = offsets[axis];
+                      const configured =
+                        !Array.isArray(configuredAxes) ||
+                        configuredAxes.includes(axis);
+                      return (
+                        <Metric
+                          key={axis}
+                          label={`${axis} 轴`}
+                          small
+                          value={
+                            typeof angle === "number"
+                              ? configured
+                                ? `${angle}°`
+                                : "未设零点"
+                              : "—"
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </details>
+            </section>
+          )}
+          <RosControls s={s} baseUrl={preferences.rosUrl} notify={notify} />
+        </div>
         <section>
           <h2>
             <Map size={19} />

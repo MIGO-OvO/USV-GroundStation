@@ -152,6 +152,17 @@ summary:focus-visible {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+:is(
+    .cockpit-body,
+    .operations-panel,
+    .planner-content,
+    .plan-editor,
+    .sampling-scroll,
+    .diagnostics-scroll,
+    .settings-scroll
+  )::-webkit-scrollbar:vertical {
+  display: none;
+}
 h1,
 h2,
 h3,
@@ -1526,13 +1537,32 @@ pre {
 .jetson-diagnostics section {
   margin-top: 22px;
 }
-.settings-scroll {
-  max-width: 1120px;
-  padding-top: 0;
+.settings {
+  container-type: inline-size;
 }
-.settings-scroll > section {
+.settings-scroll > section,
+.settings-ros > section {
   padding: 20px 0 24px;
   border-top: 1px solid var(--line);
+}
+.settings-ros .inline-form {
+  flex-wrap: wrap;
+}
+.settings-ros .inline-form > label {
+  min-width: 0;
+}
+@container (min-width: 1280px) {
+  .settings-scroll {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: clamp(24px, 2.5vw, 48px);
+    align-items: start;
+  }
+  .settings-ros {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
 }
 .settings-scroll h2 {
   margin-bottom: 18px;
@@ -1542,7 +1572,7 @@ pre {
 }
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.75fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr);
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -1562,6 +1592,9 @@ pre {
 }
 .connection-settings .caption {
   margin-top: 15px;
+}
+.connection-settings .button-row {
+  flex-wrap: wrap;
 }
 .inline-form {
   display: flex;

@@ -98,6 +98,59 @@ for (const viewport of [
   });
 }
 
+test("settings fill a wide window and stay scrollable without a vertical bar", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 1080 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "连接与设置" }).click();
+  await page.getByRole("button", { name: "Windows 串口" }).click();
+  await expect(
+    page.getByRole("combobox", { name: "串口设备" }),
+  ).toBeInViewport();
+  const scroll = page.locator(".settings-scroll");
+  const flight = page.getByRole("heading", { name: "飞控连接" });
+  const ros = page.getByRole("heading", { name: "Jetson ROS 服务" });
+  const config = page.getByRole("heading", { name: "ROS 配置与设备" });
+  const cache = page.getByRole("heading", { name: "地图与离线缓存" });
+  const [flightBox, rosBox, configBox, cacheBox, scrollBox] = await Promise.all(
+    [flight, ros, config, cache, scroll].map((item) => item.boundingBox()),
+  );
+  expect(rosBox!.y).toBeCloseTo(flightBox!.y, 0);
+  expect(rosBox!.x - flightBox!.x).toBeGreaterThan(500);
+  expect(configBox!.x).toBeCloseTo(rosBox!.x, 0);
+  expect(cacheBox!.x).toBeCloseTo(flightBox!.x, 0);
+  expect(
+    scrollBox!.x + scrollBox!.width - rosBox!.x - rosBox!.width,
+  ).toBeLessThan(32);
+  await page.screenshot({ path: ".impeccable/review/settings-wide.png" });
+
+  await page.setViewportSize({ width: 960, height: 640 });
+  await expect
+    .poll(async () => (await ros.boundingBox())!.x)
+    .toBeCloseTo((await flight.boundingBox())!.x, 0);
+  const sizing = await scroll.evaluate((el) => ({
+    verticalBar: el.getBoundingClientRect().width - el.clientWidth,
+    horizontalOverflow: el.scrollWidth - el.clientWidth,
+    needsScroll: el.scrollHeight > el.clientHeight,
+  }));
+  expect(sizing).toEqual({
+    verticalBar: 0,
+    horizontalOverflow: 0,
+    needsScroll: true,
+  });
+  await scroll.hover();
+  await page.mouse.wheel(0, 500);
+  await expect
+    .poll(() => scroll.evaluate((el) => el.scrollTop))
+    .toBeGreaterThan(0);
+  const theme = page.getByRole("combobox", { name: "界面主题" });
+  await theme.focus();
+  await expect(theme).toBeInViewport();
+  await theme.press("ArrowDown");
+  await expect(theme).toHaveValue("dark");
+});
+
 test("confirmation dialog has a name, description and keyboard cancellation", async ({
   page,
 }) => {
