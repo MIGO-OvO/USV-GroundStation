@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { emptySnapshot } from "../../src/backend";
 
-for (const width of [1556, 1280, 960, 600]) {
+for (const width of [1920, 1556, 1280, 1024, 960, 600]) {
   test(`sampling progress, aligned controls and PID visuals at ${width}`, async ({
     page,
   }) => {
@@ -140,6 +140,13 @@ for (const width of [1556, 1280, 960, 600]) {
       .boundingBox();
     const chart = await page.locator(".signal-chart").boundingBox();
     expect(progress!.y + progress!.height).toBeLessThan(chart!.y);
+    await expect(
+      page.getByRole("heading", { name: "采样与实时数据" }),
+    ).toHaveCount(0);
+    if (width > 960) {
+      expect(progress!.height).toBeLessThan(90);
+      expect(chart!.height).toBeGreaterThan(350);
+    }
     if (width === 1280) expect(chart!.y + chart!.height).toBeLessThan(692);
     const widths = await page
       .locator(".sampling-actions .control-group button")

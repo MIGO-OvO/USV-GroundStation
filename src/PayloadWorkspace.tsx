@@ -9,7 +9,7 @@ import {
   Activity,
 } from "lucide-react";
 import type { Snapshot, Preferences, SendIntent, Notify } from "./types";
-import { field, number, commands, statuses, time } from "./format";
+import { field, number, commands, time } from "./format";
 import { useRos, unpack, object, array, call, native } from "./backend";
 import { Empty, Reading, RequestSummary } from "./ui";
 import { SamplingProgress, PumpDetails, pidMode } from "./SamplingStatus";
@@ -377,20 +377,10 @@ export default function PayloadWorkspace({
     3000,
   );
   const pumps = useRos(preferences.rosUrl, "/api/manual/status", true, 1500);
-  const status = field(s, "USV_STAT");
   return (
     <section className="workspace sampling">
-      <header className="workspace-heading">
-        <div>
-          <h1>采样与实时数据</h1>
-          <p>
-            {s.payload_online
-              ? status === null
-                ? "等待载荷状态"
-                : (statuses[status] ?? `状态 ${status}`)
-              : "载荷未连接"}
-          </p>
-        </div>
+      <header className="workspace-heading sampling-heading">
+        <SamplingProgress s={s} />
         <button
           type="button"
           className={`connection-indicator ${s.payload_online ? "online" : ""}`}
@@ -407,7 +397,6 @@ export default function PayloadWorkspace({
       <div className="sampling-scroll">
         <div className="sampling-top">
           <section className="sampling-instruments">
-            <SamplingProgress s={s} />
             <div className="instrument-row">
               <div>
                 <span>分光电压</span>

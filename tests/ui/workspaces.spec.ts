@@ -28,7 +28,9 @@ for (const viewport of [
     await page
       .getByRole("checkbox", { name: "航点 1 采样", exact: true })
       .check();
-    await page.getByRole("spinbutton", { name: "航点 1 旧固件采样时限" }).fill("120");
+    await page
+      .getByRole("spinbutton", { name: "航点 1 旧固件采样时限" })
+      .fill("120");
     await expect(
       page.getByRole("button", { name: "上传并校验" }),
     ).toBeDisabled();
@@ -43,9 +45,7 @@ for (const viewport of [
       animations: "disabled",
     });
     await page.getByRole("button", { name: "采样", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: "采样与实时数据" }),
-    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "采样进度" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "点采样", exact: true }),
     ).toBeDisabled();

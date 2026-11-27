@@ -111,6 +111,16 @@ try {
   }
   await mkdir('.impeccable/review', { recursive: true });
   await page.screenshot({ path: '.impeccable/review/windows-native.png', fullPage: true });
+  await page.getByRole('button', { name: '采样', exact: true }).click();
+  await page.getByRole('region', { name: '采样进度' }).waitFor();
+  assert.equal(await page.getByRole('heading', { name: '采样与实时数据' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '点采样', exact: true }).isDisabled(), true);
+  const samplingHeader = await page.locator('.sampling-heading').boundingBox();
+  assert(samplingHeader.height < 100, 'Sampling progress must leave space for the signal');
+  await page.screenshot({ path: '.impeccable/review/windows-native-sampling.png', fullPage: true });
+  await page.getByText('四轴反馈、PID 与设备状态', { exact: true }).click();
+  assert.equal(await page.locator('.pump-axis svg').count(), 4);
+  assert.equal(await page.locator('.pump-details pre').count(), 0);
   await page.getByRole('button', { name: '连接与设置' }).click();
   assert.equal(await page.getByRole('button', { name: '连接设备' }).isEnabled(), true);
   const serial = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('serial_ports'));

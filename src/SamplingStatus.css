@@ -1,9 +1,27 @@
+.sampling .sampling-heading {
+  min-height: 0;
+  padding: 14px 24px;
+  gap: 24px;
+  align-items: center;
+}
 .sampling-progress {
-  padding: 20px 0;
-  border-bottom: 1px solid var(--line);
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(220px, 1fr);
+  gap: 8px 24px;
+  align-items: center;
+}
+.sampling-progress h2 {
+  font-size: 12px;
+  font-weight: 500;
+}
+.sampling-heading .connection-indicator {
+  flex-shrink: 0;
 }
 .sampling-progress .section-heading {
-  margin-bottom: 16px;
+  grid-column: 1 / -1;
+  margin-bottom: 0;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -19,7 +37,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 0;
-  margin: 0 0 20px;
+  margin: 0;
   list-style: none;
 }
 .sampling-stages li {
@@ -39,8 +57,8 @@
 .stage-marker {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border: 1px solid var(--line);
   border-radius: 50%;
   flex-shrink: 0;
@@ -114,7 +132,7 @@
   height: 100%;
 }
 .signal-plot {
-  height: 272px;
+  height: clamp(252px, calc(100dvh - 330px), 532px);
   width: 100%;
   min-width: 0;
   padding-bottom: 12px;
@@ -156,7 +174,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 16px 32px;
-  padding: 16px 0;
+  padding: 12px 0;
 }
 .pid-summary > div {
   display: flex;
@@ -168,14 +186,14 @@
   font-size: 12px;
 }
 .pid-summary strong {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
 }
 .pump-visuals {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border-block: 1px solid var(--line);
-  padding: 16px 0;
+  padding: 12px 0;
   gap: 16px;
 }
 .pump-axis {
@@ -185,7 +203,7 @@
   gap: 8px;
 }
 .pump-axis svg {
-  width: 84px;
+  width: 56px;
   flex-shrink: 0;
 }
 .pump-axis svg text {
@@ -199,7 +217,7 @@
   min-width: 0;
 }
 .pump-axis strong {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
 }
 .angle-track {
@@ -257,14 +275,19 @@
   gap: 14px;
   margin-top: 16px;
 }
-@media (max-width: 1280px) {
-  .pump-visuals {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (max-width: 960px) {
   .sampling-actions {
     padding-top: 20px;
+  }
+  .sampling .sampling-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .sampling-progress {
+    flex-basis: 100%;
+  }
+  .sampling-heading .connection-indicator {
+    margin-left: auto;
   }
 }
 @media (max-width: 700px) {
@@ -276,7 +299,7 @@
   .sampling-stages li:not(:last-child)::after {
     position: absolute;
     width: calc(100% - 40px);
-    top: 15px;
+    top: 12px;
     left: calc(50% + 20px);
     margin: 0;
   }
@@ -288,24 +311,28 @@
     gap: 24px;
   }
   .pump-axis svg {
-    width: 64px;
+    width: 48px;
+  }
+  .pump-visuals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sampling-progress {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .sampling .sampling-heading {
+    padding: 12px 16px;
+  }
+  .sampling-progress .section-heading {
+    grid-column: auto;
+  }
+  .signal-plot {
+    height: 312px;
   }
   .pump-axis strong {
     font-size: 16px;
   }
   .sampling-actions .control-group button {
     min-height: 48px;
-  }
-}
-
-@media (min-width: 961px) and (max-height: 800px) {
-  .signal-plot {
-    height: 212px;
-  }
-  .sampling-progress {
-    padding: 16px 0;
-  }
-  .sampling-instruments .instrument-row {
-    padding: 14px 0;
   }
 }
