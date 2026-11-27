@@ -157,13 +157,18 @@ try {
   const firstDeadline = Date.now() + 10000;
   while (connections < 1 && Date.now() < firstDeadline) await new Promise(r => setTimeout(r, 100));
   assert.equal(connections, 1);
-  await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('station_snapshot')).saved_connection !== null);
+  const readSnapshot = () => page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
+  const snapshotDeadline = Date.now() + 5000;
+  let saved = await readSnapshot();
+  while (!saved.saved_connection && !saved.connection_error && Date.now() < snapshotDeadline) {
+    await new Promise(r => setTimeout(r, 100));
+    saved = await readSnapshot();
+  }
+  assert.equal(saved.connection_error, null);
+  assert.deepEqual(saved.saved_connection, target);
   const maintenanceError = await page.evaluate(() => window.__TAURI_INTERNALS__
     .invoke('firmware_probe', { target: null }).then(() => null, error => String(error)));
   assert.match(maintenanceError ?? '', /请先断开飞控连接/);
-  const saved = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('station_snapshot'));
-  assert.deepEqual(saved.saved_connection, target);
-  assert.equal(saved.connection_error, null);
   await page.getByRole('button', { name: '断开', exact: true }).click();
   await page.reload();
   await page.getByRole('button', { name: '连接与设置' }).click();
