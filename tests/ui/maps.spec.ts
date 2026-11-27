@@ -74,14 +74,23 @@ test("Google map uses local coordinates without ROS or vessel GPS and preserves 
       ),
     )
     .toBeGreaterThan(16);
-  const calls = await page.evaluate(
-    () =>
-      (
-        window as unknown as {
-          mapTestCalls: { command: string; args: Record<string, unknown> }[];
-        }
-      ).mapTestCalls,
-  );
+  const readCalls = () =>
+    page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            mapTestCalls: { command: string; args: Record<string, unknown> }[];
+          }
+        ).mapTestCalls,
+    );
+  await expect
+    .poll(async () =>
+      (await readCalls()).some(
+        (c) => c.command === "map_tile" && c.args.offline,
+      ),
+    )
+    .toBe(true);
+  const calls = await readCalls();
   expect(
     calls.some((c) => c.command === "map_prefetch" && c.args.latitude === 31.2),
   ).toBe(true);
@@ -90,9 +99,6 @@ test("Google map uses local coordinates without ROS or vessel GPS and preserves 
       .filter((c) => c.command === "map_tile")
       .every((c) => c.args.source === "google" && c.args.baseUrl === ""),
   ).toBe(true);
-  expect(calls.some((c) => c.command === "map_tile" && c.args.offline)).toBe(
-    true,
-  );
   await page.screenshot({ path: ".impeccable/review/local-map.png" });
   expect(errors).toEqual([]);
 });
