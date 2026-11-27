@@ -291,7 +291,7 @@ for (const width of [1440, 600]) {
       ),
     ).toBe("http");
     await page.getByRole("button", { name: "读取配置", exact: true }).click();
-    const general = page.getByRole("region", { name: "ROS 采样配置" });
+    const general = page.getByRole("region", { name: "ROS 配置", exact: true });
     await general.getByText("采样任务", { exact: true }).click();
     const missionName = general.getByRole("textbox", {
       name: "名称",

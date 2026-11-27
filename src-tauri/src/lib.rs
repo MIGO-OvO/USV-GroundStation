@@ -112,12 +112,13 @@ async fn ros_control(
     transport: String,
     request: usv_core::ros_radio::Request,
     confirmed: bool,
+    expected_system: Option<u8>,
 ) -> Result<serde_json::Value, String> {
     let station = state.station.clone();
     tauri::async_runtime::spawn_blocking(move || {
         request.validate()?;
         if transport == "mavlink" {
-            return station.ros_control(request, confirmed);
+            return station.ros_control_for_system(request, confirmed, expected_system);
         }
         if transport != "http" {
             return Err("ROS 通信方式无效".into());

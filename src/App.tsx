@@ -26,6 +26,7 @@ import type {
   SendIntent,
 } from "./types";
 import { useStation, native, android, object, call } from "./backend";
+import { useSamplingConfig } from "./SamplingConfiguration";
 import {
   field,
   modes,
@@ -361,6 +362,7 @@ function Cockpit({
 
 export default function App() {
   const { snapshot: s, error, send: backendSend } = useStation();
+  const samplingConfig = useSamplingConfig(s);
   const [workspace, setWorkspace] = useState<Workspace>("cockpit");
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
   const [draft, setDraft] = useState<MissionDraft>(loadDraft);
@@ -636,7 +638,7 @@ export default function App() {
             s={s}
             preferences={preferences}
             send={send}
-            notify={notify}
+            samplingConfig={samplingConfig}
             series={series}
             onRequest={openRequest}
           />

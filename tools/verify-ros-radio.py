@@ -96,12 +96,16 @@ def main():
             print(stdout)
             if child.returncode: raise RuntimeError(stderr)
             assert dropped_ack and dropped_result
+            assert calls['POST', '/api/config'] == 2, calls
             assert calls['POST', '/api/manual/pump-step'] == 1, calls
             assert calls['POST', '/api/injection-pump/on'] == 1, calls
             # Existing HTTP data and configuration routes still work.
             client = server.app.test_client()
             assert client.get('/api/data/missions').status_code == 200
-            assert client.get('/api/config').get_json()['pump_settings']['pid_precision'] == .2
+            saved = client.get('/api/config').get_json()
+            assert saved['pump_settings']['pid_precision'] == .2
+            assert saved['sampling_sequence']['loop_count'] == 3
+            assert [step['interval'] for step in saved['sampling_sequence']['steps']] == [1000, 500]
             assert client.get('/api/map/config').status_code == 200
             print('Dropped ACK/result and duplicate frames passed; HTTP data/map/config preserved; operations:', sum(calls.values()))
         finally:

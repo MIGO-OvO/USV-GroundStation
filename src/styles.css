@@ -1271,7 +1271,7 @@ progress {
   margin-bottom: 12px;
 }
 .pump-section,
-.data-center,
+.sampling-config,
 .packet-section,
 .freshness {
   margin-top: 24px;
@@ -1344,6 +1344,10 @@ pre {
   font-size: 11px;
   overflow-wrap: anywhere;
   max-width: 260px;
+}
+.settings-scroll > .data-center {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 .data-center > .caption {
   margin-top: 14px;

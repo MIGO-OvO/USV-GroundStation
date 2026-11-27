@@ -56,6 +56,31 @@ fn main() {
         rpc("GET", "/api/config", json!({}))["pump_settings"]["pid_precision"],
         0.2
     );
+    let sampling = json!({
+        "loop_count": 3,
+        "steps": [
+            {"name":"取样","interval":1000,"X":{"enable":"E","direction":"F","speed":"5","angle":"90"}},
+            {"name":"等待","interval":500,"X":{"enable":"D"}},
+        ],
+    });
+    let write = Request {
+        method: "POST".into(),
+        path: "/api/config".into(),
+        body: json!({"sampling_sequence":sampling}),
+        authorization: String::new(),
+    };
+    assert!(
+        station
+            .ros_control_for_system(write.clone(), false, Some(2))
+            .unwrap_err()
+            .contains("飞控已切换")
+    );
+    station
+        .ros_control_for_system(write, false, Some(1))
+        .unwrap();
+    let readback = rpc("GET", "/api/config", json!({}));
+    assert_eq!(readback["sampling_sequence"], sampling);
+    assert_eq!(readback["waypoint_sampling"], config["waypoint_sampling"]);
     rpc(
         "POST",
         "/api/pid/config",

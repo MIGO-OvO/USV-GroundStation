@@ -9,6 +9,7 @@ import type {
   Notify,
 } from "./types";
 import { call, useRos, unpack, native, android, object } from "./backend";
+import DataCenter from "./DataCenter";
 import FirmwareDialog from "./FirmwareDialog";
 import RosControls from "./RosControls";
 import RosConfigEditor, { isConfig, useConfigDraft } from "./RosConfigEditor";
@@ -127,7 +128,8 @@ export default function Settings({
       });
       const config = unpack(data);
       if (!isConfig(config)) throw new Error("ROS 返回的配置应为对象。");
-      configDraft.replaceText(JSON.stringify(config, null, 2));
+      const { sampling_sequence: _sequence, ...general } = config;
+      configDraft.replaceText(JSON.stringify(general, null, 2));
       setConfigLoaded(true);
       notify("已读取 ROS 当前配置");
     } catch (e) {
@@ -137,8 +139,9 @@ export default function Settings({
     }
   }
   async function saveConfig() {
-    const body = configDraft.validated();
-    if (!body) return;
+    const edited = configDraft.validated();
+    if (!edited) return;
+    const { sampling_sequence: _sequence, ...body } = edited;
     setBusy(true);
     try {
       await call("ros_post", {
@@ -393,9 +396,9 @@ export default function Settings({
             </div>
           </section>
           {configLoaded && (
-            <section aria-labelledby="ros-sampling-config">
+            <section aria-labelledby="ros-general-config">
               <div className="section-heading">
-                <h2 id="ros-sampling-config">ROS 采样配置</h2>
+                <h2 id="ros-general-config">ROS 配置</h2>
                 <button
                   className="primary"
                   disabled={busy || !configDraft.data}
@@ -575,6 +578,7 @@ export default function Settings({
             </div>
           </dl>
         </section>
+        <DataCenter preferences={preferences} notify={notify} />
       </div>
       {firmwareOpen && (
         <FirmwareDialog

@@ -327,6 +327,7 @@ impl Engine {
         &mut self,
         request: ros_radio::Request,
         confirmed: bool,
+        expected_system: Option<u8>,
         reply: mpsc::Sender<Result<serde_json::Value>>,
         now: u64,
     ) {
@@ -334,6 +335,9 @@ impl Engine {
             request.validate()?;
             if !self.telemetry.connected(now) {
                 return Err("请先连接数传并等待飞控心跳".into());
+            }
+            if expected_system.is_some_and(|target| self.telemetry.system_id != Some(target)) {
+                return Err("当前飞控已切换，请重新读取船端配置".into());
             }
             if request.physical() {
                 if !confirmed {
@@ -1752,6 +1756,7 @@ enum Operation {
     RosRadio(
         ros_radio::Request,
         bool,
+        Option<u8>,
         mpsc::Sender<Result<serde_json::Value>>,
     ),
     Intent(Intent, mpsc::Sender<Result<serde_json::Value>>),
@@ -1779,8 +1784,14 @@ impl Station {
                     let now = started.elapsed().as_millis() as u64;
                     for _ in 0..16 {
                         match receiver.try_recv() {
-                            Ok(Operation::RosRadio(request, confirmed, reply)) => {
-                                engine.request_ros_radio(request, confirmed, reply, now);
+                            Ok(Operation::RosRadio(request, confirmed, expected_system, reply)) => {
+                                engine.request_ros_radio(
+                                    request,
+                                    confirmed,
+                                    expected_system,
+                                    reply,
+                                    now,
+                                );
                             }
                             Ok(Operation::Intent(intent, reply)) => {
                                 let result = engine.intent(intent, now);
@@ -1862,9 +1873,17 @@ impl Station {
         request: ros_radio::Request,
         confirmed: bool,
     ) -> Result<serde_json::Value> {
+        self.ros_control_for_system(request, confirmed, None)
+    }
+    pub fn ros_control_for_system(
+        &self,
+        request: ros_radio::Request,
+        confirmed: bool,
+        expected_system: Option<u8>,
+    ) -> Result<serde_json::Value> {
         let (tx, rx) = mpsc::channel();
         self.sender
-            .send(Operation::RosRadio(request, confirmed, tx))
+            .send(Operation::RosRadio(request, confirmed, expected_system, tx))
             .map_err(|e| e.to_string())?;
         rx.recv_timeout(Duration::from_millis(ros_radio::TIMEOUT_MS + 5000))
             .map_err(|e| e.to_string())?
