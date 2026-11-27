@@ -123,6 +123,15 @@ test("settings fill a wide window and stay scrollable without a vertical bar", a
   expect(
     scrollBox!.x + scrollBox!.width - rosBox!.x - rosBox!.width,
   ).toBeLessThan(32);
+  const pumpAngle = page.getByRole("spinbutton", { name: "角度 °" });
+  const pumpLabel = pumpAngle.locator("..");
+  const [angleBox, labelBox] = await Promise.all([
+    pumpAngle.boundingBox(),
+    pumpLabel.boundingBox(),
+  ]);
+  expect(angleBox!.x + angleBox!.width).toBeLessThanOrEqual(
+    labelBox!.x + labelBox!.width,
+  );
   await page.screenshot({ path: ".impeccable/review/settings-wide.png" });
 
   await page.setViewportSize({ width: 960, height: 640 });
