@@ -7,7 +7,7 @@
 | Vehicle UDP/TCP/串口 | Rust transport / Station | UDP/TCP 真实回环测试，Windows 串口已编译，待电台验收 |
 | 识别飞控、191 载荷心跳 | telemetry | 单机 ArduRover/boat；载荷心跳或有效转发遥测维持在线，字段独立过期 |
 | GPS、航迹、姿态、电池 | 驾驶舱 / MapView | 真实消息驱动，字段 TTL，未知不填示例值 |
-| 模式、解锁/上锁 | Rust flight requests | HOLD/AUTO/GUIDED/RTL，发送后状态确认 |
+| 模式、解锁/上锁 | Rust flight requests | HOLD/LOITER/AUTO/MANUAL/RTL，发送后状态确认 |
 | 推进急停与载荷停止 | SafetyState | 强制上锁及全 STOP 独立证据，保留现场确认入口 |
 | USVPayloadCommandController | payload / station | 10 命令、24 位身份、重试、USVE1、STOP 范围、旧会话隔离 |
 | USVPayloadFactGroup | telemetry / Reading | 26 字段、相对校准角、健康和有效帧状态 |

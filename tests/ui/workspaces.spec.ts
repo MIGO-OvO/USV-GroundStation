@@ -12,9 +12,10 @@ for (const viewport of [
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "航行驾驶舱" }),
-    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "驾驶舱" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "航行驾驶舱" })).toHaveCount(
+      0,
+    );
     await expect(
       page.getByRole("button", { name: "解锁", exact: true }),
     ).toBeDisabled();
@@ -23,7 +24,7 @@ for (const viewport of [
       fullPage: true,
       animations: "disabled",
     });
-    await page.getByRole("button", { name: "航线", exact: true }).click();
+    await page.getByRole("button", { name: "规划航线", exact: true }).click();
     await page.getByRole("button", { name: "添加航点", exact: true }).click();
     await page
       .getByRole("checkbox", { name: "航点 1 采样", exact: true })

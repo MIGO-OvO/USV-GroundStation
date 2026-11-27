@@ -52,7 +52,7 @@ export const emptySnapshot: Snapshot = {
     loiter: false,
     auto: false,
     auto_reason: null,
-    guided: false,
+    manual: false,
     rtl: false,
     mission_start: false,
     upload: false,

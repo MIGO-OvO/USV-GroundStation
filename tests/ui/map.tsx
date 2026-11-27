@@ -7,12 +7,14 @@ import "../../src/styles.css";
 
 function Fixture() {
   const [offline, setOffline] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   return (
     <main style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       <button onClick={() => setOffline(!offline)}>切换离线缓存</button>
       <div style={{ flex: 1, minHeight: 0 }}>
         <MapView
           snapshot={emptySnapshot}
+          onLocationError={setLocationError}
           preferences={{
             rosUrl: "",
             mapSource: "google",
@@ -23,6 +25,7 @@ function Fixture() {
           }}
         />
       </div>
+      {locationError && <footer role="status">{locationError}</footer>}
     </main>
   );
 }

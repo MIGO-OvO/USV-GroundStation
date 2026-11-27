@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { version } from "../package.json";
 import {
   Compass,
@@ -129,6 +129,7 @@ function Cockpit({
   send,
   onRequest,
   onPlan,
+  onLocationError,
 }: {
   s: Snapshot;
   preferences: Preferences;
@@ -136,6 +137,7 @@ function Cockpit({
   send: SendIntent;
   onRequest: (id: string) => void;
   onPlan: () => void;
+  onLocationError: (error: string | null) => void;
 }) {
   const armed = field(s, "armed"),
     mode = field(s, "mode"),
@@ -143,31 +145,14 @@ function Cockpit({
     fix = field(s, "gps_fix");
   const latest = s.flight_requests.at(-1);
   return (
-    <section className="workspace cockpit">
-      <header className="workspace-heading">
-        <div>
-          <h1>航行驾驶舱</h1>
-          <p>
-            {s.telemetry.system_id
-              ? `无人船 ${String(s.telemetry.system_id).padStart(2, "0")}`
-              : "等待无人船"}{" "}
-            ·{" "}
-            {s.link === "connected"
-              ? "ArduPilot ArduRover"
-              : "尚未建立飞控连接"}
-          </p>
-        </div>
-        <button className="text-button" onClick={onPlan}>
-          规划航线
-          <ArrowRight size={15} />
-        </button>
-      </header>
+    <section className="workspace cockpit" aria-label="驾驶舱">
       <div className="cockpit-body">
         <div className="cockpit-map">
           <MapView
             snapshot={s}
             preferences={preferences}
             waypoints={draft.waypoints}
+            onLocationError={onLocationError}
           />
           <div className="navigation-metrics">
             <Metric
@@ -237,6 +222,9 @@ function Cockpit({
           </section>
         </div>
         <aside className="operations-panel">
+          <button className="text-button cockpit-plan" onClick={onPlan}>
+            规划航线 <ArrowRight size={15} />
+          </button>
           <section>
             <div className="section-heading">
               <h2>航行控制</h2>
@@ -289,15 +277,15 @@ function Cockpit({
                 AUTO 任务
               </button>
               <button
-                disabled={!s.navigation.guided}
+                disabled={!s.navigation.manual || mode === 0}
                 onClick={() =>
                   void send(
-                    { type: "mode", mode: 15, confirmed: true },
-                    `无人船 ${s.telemetry.system_id} 切换 GUIDED 模式。`,
+                    { type: "mode", mode: 0, confirmed: true },
+                    `将无人船 ${s.telemetry.system_id} 切换到 MANUAL 手动模式。切换后由遥控器接管，请先确认油门和转向处于安全位置。`,
                   )
                 }
               >
-                GUIDED
+                MANUAL 手动
               </button>
               <button
                 disabled={!s.navigation.rtl}
@@ -377,6 +365,7 @@ export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
   const [draft, setDraft] = useState<MissionDraft>(loadDraft);
   const [selectedRequest, setSelectedRequest] = useState("");
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(
     null,
   );
@@ -384,6 +373,7 @@ export default function App() {
     text: string;
     intent: Intent;
   } | null>(null);
+  const [confirmationError, setConfirmationError] = useState("");
   const [busy, setBusy] = useState(false);
   const submissionGeneration = useRef(0);
   useEffect(() => {
@@ -396,24 +386,50 @@ export default function App() {
     document.documentElement.dataset.theme = preferences.theme;
     localStorage.setItem("usv.preferences", JSON.stringify(preferences));
   }, [preferences]);
+  const [noticeSeconds, setNoticeSeconds] = useState(5);
+  const notify = useCallback((text: string, isError = false) => {
+    setNoticeSeconds(5);
+    setNotice({ text, error: isError });
+  }, []);
+  useEffect(() => {
+    if (error) notify(error, true);
+  }, [error, notify]);
+  useEffect(() => {
+    if (!notice) return;
+    const deadline = Date.now() + 5000;
+    const interval = window.setInterval(() => {
+      setNoticeSeconds(Math.max(1, Math.ceil((deadline - Date.now()) / 1000)));
+    }, 1000);
+    const timeout = window.setTimeout(() => {
+      setNotice((current) => (current === notice ? null : current));
+    }, 5000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [notice]);
   useEffect(() => {
     if (native)
       void call("map_set_offline", { offline: preferences.offline }).catch(
-        (e) => setNotice({ text: String(e), error: true }),
+        (e) => notify(String(e), true),
       );
-  }, [preferences.offline]);
+  }, [preferences.offline, notify]);
   useEffect(() => {
     localStorage.setItem("usv.mission", JSON.stringify(draft));
   }, [draft]);
-  function notify(text: string, isError = false) {
-    setNotice({ text, error: isError });
-  }
   async function execute(intent: Intent, name?: string) {
     const generation = ++submissionGeneration.current;
     setBusy(true);
     try {
       if (recordingKind(intent)) {
-        intent = await prepareRecording(intent, name ?? "", preferences.rosUrl);
+        setConfirmationError("");
+        try {
+          intent = await prepareRecording(intent, name ?? "", preferences.rosUrl);
+        } catch (error) {
+          if (generation === submissionGeneration.current)
+            setConfirmationError(String(error));
+          return;
+        }
         if (generation !== submissionGeneration.current) return;
         if (recordingKind(intent) === "mission")
           setDraft((draft) => ({ ...draft, name: name?.trim() }));
@@ -442,6 +458,7 @@ export default function App() {
     if (text || recordingKind(intent)) {
       submissionGeneration.current += 1;
       setBusy(false);
+      setConfirmationError("");
       setConfirmation({ intent, text: text || "开始采样？" });
       return;
     }
@@ -460,7 +477,7 @@ export default function App() {
   const locked = s.safety.emergency_latched || s.safety.outputs_unknown;
   const desktopChrome = native && !android;
   return (
-    <div className="app-shell">
+    <div className={`app-shell${locationError ? " has-location-warning" : ""}`}>
       <header
         className={`app-header${desktopChrome ? " app-header-desktop" : ""}`}
         data-tauri-drag-region={desktopChrome ? "deep" : undefined}
@@ -551,21 +568,6 @@ export default function App() {
         </div>
       </nav>
       <main className="app-main">
-        {(notice || error) && (
-          <div
-            className={`notice ${notice?.error || error ? "error" : ""}`}
-            role={notice?.error || error ? "alert" : "status"}
-          >
-            <span>{notice?.text ?? error}</span>
-            <button
-              aria-label="关闭反馈"
-              className="icon-button"
-              onClick={() => setNotice(null)}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
         {(s.identity_error || s.log_error) && (
           <div className="notice error" role="alert">
             {s.identity_error
@@ -615,6 +617,7 @@ export default function App() {
             send={send}
             onRequest={openRequest}
             onPlan={() => setWorkspace("planner")}
+            onLocationError={setLocationError}
           />
         )}
         {workspace === "planner" && (
@@ -625,6 +628,7 @@ export default function App() {
             setDraft={setDraft}
             send={send}
             notify={notify}
+            onLocationError={setLocationError}
           />
         )}
         {workspace === "sampling" && (
@@ -672,17 +676,43 @@ export default function App() {
           <span className="footer-divider" />
           {native ? "本地工作区" : "界面预览，无设备控制"}
         </span>
+        {locationError && (
+          <span className="footer-location" title={locationError}>
+            无法获取本机位置
+          </span>
+        )}
         <span>
           WGS 84
-          <span className="footer-divider" />
-          v{version}
+          <span className="footer-divider" />v{version}
         </span>
       </footer>
+      {notice && (
+        <div className={`toast${notice.error ? " toast-error" : ""}`}>
+          <span
+            className="toast-message"
+            role={notice.error ? "alert" : "status"}
+          >
+            {notice.text}
+          </span>
+          <span className="toast-time" aria-hidden="true">
+            {noticeSeconds} s
+          </span>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="关闭反馈"
+            onClick={() => setNotice(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       {confirmation && (
         <Confirm
           key={JSON.stringify(confirmation)}
           text={confirmation.text}
           busy={busy}
+          submissionError={confirmationError}
           nameLabel={
             recordingKind(confirmation.intent) === "sample"
               ? "采样名称"

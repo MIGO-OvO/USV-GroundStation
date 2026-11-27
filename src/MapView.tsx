@@ -112,6 +112,7 @@ export default function MapView({
   editing = false,
   onAdd,
   onMove,
+  onLocationError,
 }: {
   snapshot: Snapshot;
   preferences: Preferences;
@@ -119,6 +120,7 @@ export default function MapView({
   editing?: boolean;
   onAdd?: (lat: number, lon: number) => void;
   onMove?: (index: number, lat: number, lon: number) => void;
+  onLocationError?: (error: string | null) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -134,7 +136,6 @@ export default function MapView({
   const [localPosition, setLocalPosition] = useState<LocalPosition | null>(
     null,
   );
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [networkEpoch, setNetworkEpoch] = useState(0);
   const [following, setFollowing] = useState(false);
   const position = useRef<[number, number] | null>(null);
@@ -154,7 +155,6 @@ export default function MapView({
   useEffect(() => {
     if (!native || !preferences.mapEnabled) return;
     let active = true;
-    setLocationError(null);
     void call<LocalPosition>("map_location", { offline: preferences.offline })
       .then((p) => {
         if (!active) return;
@@ -167,10 +167,11 @@ export default function MapView({
           }).catch(() => {});
       })
       .catch((e) => {
-        if (active) setLocationError(String(e));
+        if (active) onLocationError?.(String(e));
       });
     return () => {
       active = false;
+      onLocationError?.(null);
     };
   }, [
     preferences.mapEnabled,
@@ -178,6 +179,7 @@ export default function MapView({
     preferences.mapSource,
     preferences.mapStyle,
     networkEpoch,
+    onLocationError,
   ]);
   useEffect(() => {
     if (!container.current) return;
@@ -369,30 +371,23 @@ export default function MapView({
       <div className="map-tag">
         <Crosshair size={14} />
         {editing ? "点击地图添加航点 · 拖动调整位置" : "WGS 84"}
-        <span>
-          {preferences.offline
-            ? "离线缓存"
-            : preferences.mapEnabled
-              ? preferences.mapSource === "google"
-                ? "Google · 自动缓存"
-                : "ROS 地图"
-              : "底图未连接"}
-        </span>
+        {preferences.offline && <span>离线缓存</span>}
+        {!preferences.offline &&
+          preferences.mapEnabled &&
+          preferences.mapSource === "ros" && <span>ROS 地图</span>}
       </div>
       {(!preferences.mapEnabled || !native) && (
         <div className="map-empty">
           <LocateFixed size={32} strokeWidth={1.2} />
           <strong>{native ? "底图已关闭" : "地面站界面预览"}</strong>
           <span>
-            {native
-              ? "在设置中启用 Google 底图，联网浏览自动缓存"
-              : "请打开桌面程序连接无人船和地图服务"}
+            {native ? "在设置中启用底图" : "请打开桌面程序连接无人船和地图服务"}
           </span>
         </div>
       )}
-      {(mapError || locationError) && preferences.mapEnabled && (
+      {mapError && preferences.mapEnabled && (
         <div className="map-error" role="status">
-          {mapError || locationError}
+          {mapError}
         </div>
       )}
       <div className="map-controls">

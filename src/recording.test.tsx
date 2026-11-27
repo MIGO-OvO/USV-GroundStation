@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { emptySnapshot } from "./backend";
@@ -96,9 +97,10 @@ it("keeps START unsent after name preparation fails", async () => {
   mock.call.mockRejectedValue(new Error("名称保存失败"));
   render(<App />);
   enterSampleName();
-  await screen.findByText("Error: 名称保存失败");
+  const dialog = within(screen.getByRole("dialog"));
+  expect(await dialog.findByRole("alert")).toHaveTextContent("名称保存失败");
+  expect(dialog.getByRole("textbox", { name: "采样名称" })).toHaveValue("湖心");
   expect(mock.send).not.toHaveBeenCalled();
-  expect(screen.getByRole("dialog")).toBeVisible();
 });
 
 it.each(["cancel", "disconnect", "stop"])(

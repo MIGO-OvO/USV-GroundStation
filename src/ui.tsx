@@ -78,6 +78,7 @@ export function Confirm({
   onConfirm,
   onClose,
   busy,
+  submissionError,
   nameLabel,
   initialName = "",
 }: {
@@ -85,6 +86,7 @@ export function Confirm({
   onConfirm: (name?: string) => void;
   onClose: () => void;
   busy: boolean;
+  submissionError?: string;
   nameLabel?: string;
   initialName?: string;
 }) {
@@ -92,6 +94,7 @@ export function Confirm({
   const id = useId();
   const [name, setName] = useState(initialName);
   const [error, setError] = useState("");
+  const message = error || submissionError;
   useEffect(() => {
     ref.current?.showModal();
   }, []);
@@ -134,7 +137,7 @@ export function Confirm({
               value={name}
               disabled={busy}
               aria-invalid={Boolean(error)}
-              aria-describedby={error ? `${id}-error` : undefined}
+              aria-describedby={message ? `${id}-error` : undefined}
               onChange={(event) => {
                 setName(event.target.value);
                 setError("");
@@ -142,9 +145,9 @@ export function Confirm({
             />
           </label>
         )}
-        {error && (
+        {message && (
           <p id={`${id}-error`} role="alert">
-            {error}
+            {message}
           </p>
         )}
         <div className="button-row end">

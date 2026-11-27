@@ -8,7 +8,7 @@
 
 - UDP/TCP、Windows 串口，插拔时自动更新串口和设备名称。可自动识别或指定 ArduRover sysid，记忆上次连接并在启动时恢复。
 - 飞控 USB 固件刷写，支持本地 APJ/PX4 和与板卡匹配的官方 ArduRover 稳定版。
-- 地图驾驶舱、定位/航迹、电池/姿态、解锁/上锁、LOITER/AUTO/GUIDED/RTL。
+- 地图驾驶舱、定位/航迹、电池/姿态、解锁/上锁、LOITER/AUTO/MANUAL/RTL。
 - 31010 至 31019 载荷控制，持久化 session/request，关联 USVE1、三次同身份发送、分片重组、断线观察恢复。
 - 航点编辑、采样开关和超时、JSON 导入导出，原生 MAVLink 任务上传、下载和逐项回读。
 - ROS 相对校准角、PID 状态、有效帧曲线、历史记录与 CSV/ZIP 下载。

@@ -460,6 +460,9 @@ small {
   align-items: center;
   gap: 7px;
 }
+.footer-location {
+  color: var(--warning);
+}
 .footer-divider {
   display: inline-block;
   height: 10px;
@@ -481,6 +484,51 @@ small {
 .inline-error {
   background: var(--danger-soft);
   color: var(--danger);
+}
+.toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 44px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 18px #0003;
+  font-size: 13px;
+  animation: toast-in 160ms ease-out;
+}
+.toast-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--line));
+}
+.toast-message {
+  min-width: 0;
+  max-height: 30vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.toast-time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.toast-error .toast-time {
+  color: var(--danger);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .inline-error {
   padding: 10px 12px;
@@ -533,7 +581,12 @@ small {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
-  padding: 0 28px 28px;
+  padding: 12px 28px 28px;
+}
+.cockpit-plan {
+  display: flex;
+  width: fit-content;
+  margin: 0 0 12px auto;
 }
 .cockpit-map {
   display: flex;
@@ -620,7 +673,7 @@ small {
   display: flex;
   flex-direction: column;
   border-radius: 5px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
   border: 1px solid var(--line);
   overflow: hidden;
 }
@@ -628,6 +681,9 @@ small {
   border-radius: 0;
   width: 36px;
   height: 36px;
+}
+.map-controls button:focus-visible {
+  outline-offset: -3px;
 }
 .map-controls button + button {
   border-top: 1px solid var(--line);
@@ -732,7 +788,7 @@ small {
   padding: 20px 0;
   border-bottom: 1px solid var(--line);
 }
-.operations-panel section:first-child {
+.operations-panel section:first-of-type {
   padding-top: 0;
 }
 .operations-panel section:last-child {
@@ -1658,7 +1714,7 @@ pre {
   .cockpit-body {
     grid-template-columns: minmax(0, 1fr) 268px;
     gap: 20px;
-    padding: 0 24px 24px;
+    padding: 12px 24px 24px;
   }
   .operations-panel {
     padding: 0;
@@ -1786,7 +1842,7 @@ pre {
 @media (max-width: 700px) {
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 54px minmax(0, 1fr) 58px;
+    grid-template-rows: 54px minmax(0, 1fr) auto var(--location-row, 0px) 58px;
   }
   .app-header {
     display: flex;
@@ -1825,7 +1881,7 @@ pre {
     margin-right: 0;
   }
   .app-nav {
-    grid-row: 3;
+    grid-row: 5;
     display: flex;
     flex-direction: row;
     justify-content: space-around;
@@ -1852,6 +1908,27 @@ pre {
   .app-footer {
     display: none;
   }
+  .app-shell.has-location-warning {
+    --location-row: 24px;
+  }
+  .has-location-warning .app-footer {
+    grid-row: 4;
+    display: flex;
+    justify-content: center;
+  }
+  .has-location-warning .app-footer > span:not(.footer-location) {
+    display: none;
+  }
+  .toast {
+    position: relative;
+    grid-row: 3;
+    grid-column: 1;
+    justify-self: center;
+    left: auto;
+    bottom: auto;
+    translate: none;
+    margin: 4px 0 12px;
+  }
   .app-main {
     grid-row: 2;
     grid-column: 1;
@@ -1874,7 +1951,7 @@ pre {
     display: flex;
     flex-direction: column;
     overflow: auto;
-    padding: 0 16px 20px;
+    padding: 10px 16px 20px;
   }
   .cockpit-map {
     min-height: 410px;
@@ -1889,6 +1966,9 @@ pre {
     padding: 0;
   }
   .operations-panel .panel-request {
+    grid-column: 1/-1;
+  }
+  .cockpit-plan {
     grid-column: 1/-1;
   }
   .operations-panel .payload-controls .button-row {

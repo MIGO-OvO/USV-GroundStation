@@ -1,4 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Snapshot, RequestRecord } from "./types";
 import { emptySnapshot } from "./backend";
@@ -22,7 +29,49 @@ beforeEach(() => {
   mock.send.mockClear();
   localStorage.clear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+it("confirms MANUAL and dismisses ordinary feedback after five seconds", async () => {
+  vi.useFakeTimers();
+  mock.snapshot.link = "connected";
+  mock.snapshot.telemetry.system_id = 1;
+  mock.snapshot.navigation.manual = true;
+  mock.snapshot.telemetry.fields.mode = {
+    value: 4,
+    received_ms: 0,
+    sequence: 1,
+    source_component: 1,
+  };
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  const { rerender } = render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "MANUAL 手动" }));
+  expect(mock.send).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog")).toHaveTextContent("遥控器接管");
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "确认执行" })),
+  );
+  expect(mock.send).toHaveBeenCalledExactlyOnceWith({
+    type: "mode",
+    mode: 0,
+    confirmed: true,
+  });
+  const toast = screen.getByRole("status").closest(".toast") as HTMLElement;
+  expect(within(toast).getByText("5 s")).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(2000));
+  expect(within(toast).getByText("3 s")).toBeInTheDocument();
+  mock.snapshot.telemetry.fields.mode.value = 0;
+  rerender(<App />);
+  expect(screen.getByRole("button", { name: "MANUAL 手动" })).toBeDisabled();
+  act(() => vi.advanceTimersByTime(2999));
+  expect(toast).toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(toast).not.toBeInTheDocument();
+});
 
 it("restores saved serial settings after disconnect and navigation", () => {
   mock.snapshot.saved_connection = {
@@ -31,14 +80,18 @@ it("restores saved serial settings after disconnect and navigation", () => {
   };
   render(<App />);
   fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
-  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue("COM14");
+  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue(
+    "COM14",
+  );
   expect(screen.getByRole("combobox", { name: "波特率" })).toHaveValue(
     "230400",
   );
   expect(screen.getByRole("spinbutton", { name: "目标 sysid" })).toHaveValue(7);
   fireEvent.click(screen.getByRole("button", { name: "诊断" }));
   fireEvent.click(screen.getByRole("button", { name: "连接与设置" }));
-  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue("COM14");
+  expect(screen.getByRole("combobox", { name: "串口设备" })).toHaveValue(
+    "COM14",
+  );
   expect(mock.send).not.toHaveBeenCalled();
 });
 

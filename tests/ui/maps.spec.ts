@@ -46,7 +46,8 @@ test("Google map uses local coordinates without ROS or vessel GPS and preserves 
   await expect(page.getByRole("button", { name: "定位本机" })).toBeEnabled();
   await expect(page.getByLabel("本机位置", { exact: true })).toBeVisible();
   await expect(page.getByText("等待新鲜定位")).toBeVisible();
-  await expect(page.getByText("Google · 自动缓存")).toBeVisible();
+  await expect(page.getByText("Google · 自动缓存")).toHaveCount(0);
+  await expect(page.getByText("© Google", { exact: true })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("usv.map.viewport")))
     .not.toBeNull();
@@ -113,6 +114,7 @@ test("denied local positioning still allows browsing and caching without invente
   await expect(page.getByRole("status")).toHaveText(
     "Error: Windows 定位不可用，可拖动地图自动缓存",
   );
+  await expect(page.locator(".map-error")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "定位本机" })).toBeDisabled();
   await expect(page.getByLabel("本机位置", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "放大地图" }).click();

@@ -4,7 +4,7 @@ use usv_core::{
     identity::IdentityStore,
     payload::{self, PayloadEvent, Reassembler, RequestRecord, RequestState},
     station::{Engine, Intent},
-    telemetry::{PAYLOAD_FIELDS, Telemetry},
+    telemetry::{HEARTBEAT_TTL_MS, PAYLOAD_FIELDS, Telemetry},
     transport::{ConnectionConfig, SavedConnection},
     wire::{self, WireMessage, commands, standard::*},
 };
@@ -678,6 +678,28 @@ fn arm_requires_fresh_disarmed_telemetry_and_snapshot_agrees() {
     assert!(e.snapshot(100).navigation.arm);
     e.telemetry.heartbeat_ms = Some(4000);
     assert!(!e.snapshot(4000).navigation.arm);
+}
+
+#[test]
+fn manual_mode_requires_confirmation_fresh_heartbeat_and_unlocked_safety() {
+    let d = tempfile::tempdir().unwrap();
+    let mut e = prepared(d.path());
+    let manual = |confirmed| Intent::Mode { mode: 0, confirmed };
+    assert_eq!(e.telemetry.get("gps_fix", 100), None);
+    assert!(e.snapshot(100).navigation.manual);
+    assert!(e.intent(manual(false), 100).is_err());
+    e.safety.outputs_unknown = true;
+    assert!(!e.snapshot(100).navigation.manual);
+    assert!(e.intent(manual(true), 100).is_err());
+    e.safety.outputs_unknown = false;
+    e.safety.emergency_latched = true;
+    assert!(!e.snapshot(100).navigation.manual);
+    assert!(e.intent(manual(true), 100).is_err());
+    e.safety.emergency_latched = false;
+    let expired = 100 + HEARTBEAT_TTL_MS + 1;
+    assert!(!e.snapshot(expired).navigation.manual);
+    assert!(e.intent(manual(true), expired).is_err());
+    assert!(e.flight.is_empty());
 }
 
 #[test]

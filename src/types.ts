@@ -163,7 +163,7 @@ export interface NavigationActions {
   loiter: boolean;
   auto: boolean;
   auto_reason: string | null;
-  guided: boolean;
+  manual: boolean;
   rtl: boolean;
   mission_start: boolean;
   upload: boolean;

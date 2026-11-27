@@ -66,7 +66,9 @@ try {
   assert(page, 'Tauri webview page missing');
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
-  await page.getByRole('heading', { name: '航行驾驶舱' }).waitFor();
+  await page.getByRole('region', { name: '驾驶舱' }).waitFor();
+  assert.equal(await page.getByRole('heading', { name: '航行驾驶舱' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'MANUAL 手动' }).isDisabled(), true);
   const maximize = page.getByRole('button', { name: '最大化窗口' });
   const restore = page.getByRole('button', { name: '还原窗口' });
   const windowState = (property) => page.evaluate(property => window.__TAURI_INTERNALS__

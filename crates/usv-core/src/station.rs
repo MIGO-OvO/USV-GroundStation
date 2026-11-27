@@ -86,7 +86,7 @@ pub struct NavigationActions {
     pub loiter: bool,
     pub auto: bool,
     pub auto_reason: Option<String>,
-    pub guided: bool,
+    pub manual: bool,
     pub rtl: bool,
     pub mission_start: bool,
     pub upload: bool,
@@ -498,7 +498,7 @@ impl Engine {
         if mode.is_none() && self.telemetry.get("armed", now) != Some(0.0) {
             return Err("等待新鲜的推进上锁状态".into());
         }
-        if matches!(mode, Some(5 | 10 | 11 | 15))
+        if matches!(mode, Some(5 | 10 | 11))
             && (self.telemetry.get("gps_fix", now).is_none_or(|v| v < 3.0)
                 || self.telemetry.get("latitude", now).is_none()
                 || self.telemetry.get("longitude", now).is_none())
@@ -883,7 +883,7 @@ impl Engine {
                 if !confirmed {
                     return Err("操作员尚未确认模式切换".into());
                 }
-                if ![0, 4, 5, 10, 11, 12, 15].contains(&mode) {
+                if ![0, 4, 5, 10, 11, 12].contains(&mode) {
                     return Err("此 ArduRover 模式未开放".into());
                 }
                 if mode == 10 {
@@ -1721,7 +1721,7 @@ impl Engine {
                 loiter: self.nav_gate(Some(5), true, now).is_ok(),
                 auto: auto_reason.is_none(),
                 auto_reason,
-                guided: connected && unlocked && gps,
+                manual: self.nav_gate(Some(0), true, now).is_ok(),
                 rtl: connected && unlocked && gps,
                 mission_start: connected
                     && unlocked

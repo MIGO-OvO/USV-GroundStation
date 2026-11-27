@@ -88,6 +88,105 @@ fn wait(s: &Station, predicate: impl Fn(&Snapshot) -> bool) -> Snapshot {
 }
 
 #[test]
+fn manual_mode_sends_mode_zero_and_waits_for_heartbeat() {
+    let dir = tempfile::tempdir().unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let station = Station::start(dir.path()).unwrap();
+    station
+        .dispatch(Intent::Connect {
+            config: ConnectionConfig::Tcp {
+                host: "127.0.0.1".into(),
+                port: listener.local_addr().unwrap().port(),
+            },
+            target_system: Some(1),
+        })
+        .unwrap();
+    let (mut peer, _) = listener.accept().unwrap();
+    peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    let rover_mode = |custom_mode| {
+        frame(
+            1,
+            MavMessage::HEARTBEAT(HEARTBEAT_DATA {
+                mavtype: MavType::MAV_TYPE_SURFACE_BOAT,
+                autopilot: MavAutopilot::MAV_AUTOPILOT_ARDUPILOTMEGA,
+                custom_mode,
+                base_mode: MavModeFlag::MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
+                    | MavModeFlag::MAV_MODE_FLAG_SAFETY_ARMED,
+                mavlink_version: 3,
+                ..Default::default()
+            })
+            .into(),
+        )
+    };
+    peer.write_all(&rover_mode(4)).unwrap();
+    let ready = wait(&station, |s| s.navigation.manual);
+    assert!(!ready.navigation.loiter);
+    station
+        .dispatch(Intent::Mode {
+            mode: 0,
+            confirmed: true,
+        })
+        .unwrap();
+    let mut decoder = wire::Decoder::default();
+    let mut buffer = [0; 4096];
+    let started = Instant::now();
+    let command = loop {
+        assert!(started.elapsed() < Duration::from_secs(3));
+        let length = peer.read(&mut buffer).unwrap();
+        assert_ne!(length, 0);
+        if let Some(command) =
+            decoder
+                .push(&buffer[..length])
+                .into_iter()
+                .find_map(|(_, message)| match message {
+                    WireMessage::Command(commands::MavMessage::COMMAND_LONG(command))
+                        if command.command == 176 =>
+                    {
+                        Some(command)
+                    }
+                    _ => None,
+                })
+        {
+            break command;
+        }
+    };
+    assert_eq!(
+        (
+            command.target_system,
+            command.target_component,
+            command.command
+        ),
+        (1, 1, 176)
+    );
+    assert_eq!((command.param1, command.param2), (1.0, 0.0));
+    peer.write_all(&frame(
+        1,
+        commands::MavMessage::COMMAND_ACK(commands::COMMAND_ACK_DATA {
+            command: 176,
+            target_system: 254,
+            target_component: 190,
+            result: 0,
+            ..Default::default()
+        })
+        .into(),
+    ))
+    .unwrap();
+    let ack = wait(&station, |s| {
+        s.flight_requests
+            .last()
+            .is_some_and(|r| r.ack_result == Some(0))
+    });
+    assert_eq!(ack.flight_requests.last().unwrap().state, "sent");
+    peer.write_all(&rover_mode(0)).unwrap();
+    let state = wait(&station, |s| {
+        s.flight_requests
+            .last()
+            .is_some_and(|r| r.state == "confirmed")
+    });
+    assert_eq!(state.flight_requests.last().unwrap().name, "MANUAL");
+}
+
+#[test]
 fn firmware_lease_excludes_pending_and_new_station_connections() {
     let directory = tempfile::tempdir().unwrap();
     let station = Station::start(directory.path()).unwrap();

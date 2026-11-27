@@ -27,6 +27,7 @@ export default function Planner({
   setDraft,
   send,
   notify,
+  onLocationError,
 }: {
   s: Snapshot;
   preferences: Preferences;
@@ -34,6 +35,7 @@ export default function Planner({
   setDraft: (d: MissionDraft) => void;
   send: SendIntent;
   notify: Notify;
+  onLocationError: (error: string | null) => void;
 }) {
   const file = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(true);
@@ -127,6 +129,7 @@ export default function Planner({
             snapshot={s}
             preferences={preferences}
             waypoints={draft.waypoints}
+            onLocationError={onLocationError}
             editing={editing}
             onAdd={add}
             onMove={(i, lat, lon) => update(i, { lat, lon })}
