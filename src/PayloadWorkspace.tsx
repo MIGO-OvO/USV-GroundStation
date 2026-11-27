@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Play,
   Pause,
@@ -12,6 +12,8 @@ import type { Snapshot, Preferences, SendIntent, Notify } from "./types";
 import { field, number, commands, statuses, time } from "./format";
 import { useRos, unpack, object, array, call, native } from "./backend";
 import { Empty, Reading, RequestSummary } from "./ui";
+import { SamplingProgress, PumpDetails, pidMode } from "./SamplingStatus";
+import "./SamplingStatus.css";
 
 export interface SignalPoint {
   t: number;
@@ -26,8 +28,49 @@ export function SignalChart({
   unit: string;
   label: string;
 }) {
-  if (!data.length)
-    return <Empty title={`等待有效${label}数据`}>收到有效测量后显示曲线</Empty>;
+  const container = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 700, height: 260 });
+  useEffect(() => {
+    if (!container.current) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({
+        width: Math.max(240, entry.contentRect.width),
+        height: entry.contentRect.height,
+      }),
+    );
+    observer.observe(container.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div className="signal-plot" ref={container}>
+      {data.length ? (
+        <SignalPlot
+          data={data}
+          unit={unit}
+          label={label}
+          width={size.width}
+          height={size.height}
+        />
+      ) : (
+        <Empty title={`等待有效${label}数据`}>收到有效测量后显示曲线</Empty>
+      )}
+    </div>
+  );
+}
+
+function SignalPlot({
+  data,
+  unit,
+  label,
+  width,
+  height,
+}: {
+  data: SignalPoint[];
+  unit: string;
+  label: string;
+  width: number;
+  height: number;
+}) {
   const end = data[data.length - 1].t,
     start = end - 120000;
   const visible = data.filter((p) => p.t >= start);
@@ -39,8 +82,8 @@ export function SignalChart({
   let previous = -Infinity;
   const path = visible
     .map((p) => {
-      const x = 54 + ((p.t - start) / 120000) * 606;
-      const y = 170 - ((p.value - low) / (high - low)) * 140;
+      const x = 54 + ((p.t - start) / 120000) * (width - 70);
+      const y = height - 40 - ((p.value - low) / (high - low)) * (height - 70);
       const command = p.t - previous > 3000 ? "M" : "L";
       previous = p.t;
       return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
@@ -49,7 +92,7 @@ export function SignalChart({
   return (
     <svg
       className="signal-chart"
-      viewBox="0 0 700 210"
+      viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={`${label}实时曲线，最近 120 秒，共 ${visible.length} 个观测点`}
     >
@@ -60,24 +103,24 @@ export function SignalChart({
         <g key={y}>
           <line
             x1="54"
-            x2="660"
-            y1={30 + y * 140}
-            y2={30 + y * 140}
+            x2={width - 16}
+            y1={30 + y * (height - 70)}
+            y2={30 + y * (height - 70)}
             className="chart-grid"
           />
-          <text x="46" y={34 + y * 140} textAnchor="end">
+          <text x="46" y={34 + y * (height - 70)} textAnchor="end">
             {(high - y * (high - low)).toFixed(3)}
           </text>
         </g>
       ))}
       <path d={path} className="chart-line" />
-      <text x="54" y="196">
+      <text x="54" y={height - 12}>
         −120 s
       </text>
-      <text x="356" y="196" textAnchor="middle">
+      <text x={(54 + width - 16) / 2} y={height - 12} textAnchor="middle">
         −60 s
       </text>
-      <text x="660" y="196" textAnchor="end">
+      <text x={width - 16} y={height - 12} textAnchor="end">
         最新接收
       </text>
     </svg>
@@ -364,6 +407,7 @@ export default function PayloadWorkspace({
       <div className="sampling-scroll">
         <div className="sampling-top">
           <section className="sampling-instruments">
+            <SamplingProgress s={s} />
             <div className="instrument-row">
               <div>
                 <span>分光电压</span>
@@ -409,33 +453,6 @@ export default function PayloadWorkspace({
               unit={signal === "voltage" ? "V" : "AU"}
               label={signal === "voltage" ? "电压" : "吸光度"}
             />
-            <div className="automation-strip">
-              <span>
-                准备阶段{" "}
-                <b>
-                  {[...s.requests]
-                    .reverse()
-                    .find((r) => !r.retired && r.event?.preflight_phase)?.event
-                    ?.preflight_phase || "等待事件"}
-                </b>
-              </span>
-              <span>
-                步骤{" "}
-                <b>
-                  {number(field(s, "USV_STEP"), 0)} /{" "}
-                  {number(field(s, "USV_STOT"), 0)}
-                </b>
-              </span>
-              <span>
-                循环{" "}
-                <b>
-                  {number(field(s, "USV_LOOP"), 0)} /{" "}
-                  {field(s, "USV_LTOT") === 0
-                    ? "不限"
-                    : number(field(s, "USV_LTOT"), 0)}
-                </b>
-              </span>
-            </div>
           </section>
           <aside className="sampling-actions">
             <h2>载荷操作</h2>
@@ -468,33 +485,18 @@ export default function PayloadWorkspace({
             <div>
               <span>PID 模式 / 误差</span>
               <strong>
-                {number(field(s, "USV_PMOD"), 0)} /{" "}
-                {number(field(s, "USV_PERR"), 2, "°")}
+                {pidMode(s)} / {number(field(s, "USV_PERR"), 2, "°")}
               </strong>
             </div>
           </div>
-          <details>
-            <summary>四轴 PID、自动化与设备健康详情</summary>
-            {health.error ? (
-              <p className="inline-error">{health.error}</p>
-            ) : (
-              <pre>
-                {JSON.stringify(unpack(health.data), null, 2) ??
-                  "等待 ROS 状态"}
-              </pre>
-            )}
-          </details>
+          <PumpDetails
+            s={s}
+            health={health.data}
+            manual={pumps.data}
+            healthError={health.error}
+            manualError={pumps.error}
+          />
         </section>
-        <details>
-          <summary>四轴 PID 原始状态</summary>
-          {pumps.error ? (
-            <p className="inline-error">{pumps.error}</p>
-          ) : (
-            <pre>
-              {JSON.stringify(unpack(pumps.data), null, 2) ?? "等待泵组状态"}
-            </pre>
-          )}
-        </details>
         <DataCenter preferences={preferences} notify={notify} />
         <div className="health-strip">
           <span>
