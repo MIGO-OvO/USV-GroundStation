@@ -115,8 +115,22 @@ try {
   await page.getByRole('region', { name: '采样进度' }).waitFor();
   assert.equal(await page.getByRole('heading', { name: '采样与实时数据' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '点采样', exact: true }).isDisabled(), true);
-  const samplingHeader = await page.locator('.sampling-heading').boundingBox();
-  assert(samplingHeader.height < 100, 'Sampling progress must leave space for the signal');
+  for (const width of [960, 1280]) {
+    await page.setViewportSize({ width, height: 720 });
+    const layout = await page.locator('.sampling').evaluate(workspace => {
+      const header = workspace.querySelector('.sampling-heading').getBoundingClientRect();
+      const plot = workspace.querySelector('.signal-plot').getBoundingClientRect();
+      return { viewport: innerWidth, headerHeight: header.height, plotHeight: plot.height,
+        plotBottom: plot.bottom, scrollBottom: workspace.querySelector('.sampling-scroll').getBoundingClientRect().bottom,
+        overflow: workspace.scrollWidth - workspace.clientWidth };
+    });
+    assert.equal(layout.viewport, width);
+    assert(layout.overflow <= 1, `Sampling layout overflows at ${width}px: ${JSON.stringify(layout)}`);
+    if (width === 1280) {
+      assert(layout.headerHeight < 100 && layout.plotHeight > 350 && layout.plotBottom <= layout.scrollBottom,
+        `Sampling progress must leave space for the whole signal plot: ${JSON.stringify(layout)}`);
+    }
+  }
   await page.screenshot({ path: '.impeccable/review/windows-native-sampling.png', fullPage: true });
   await page.getByText('四轴反馈、PID 与设备状态', { exact: true }).click();
   assert.equal(await page.locator('.pump-axis svg').count(), 4);

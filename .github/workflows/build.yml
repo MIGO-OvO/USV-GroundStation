@@ -48,4 +48,5 @@ jobs:
             target/release/usv-groundstation.exe
             licenses/*
             .impeccable/review/windows-native.png
+            .impeccable/review/windows-native-sampling.png
             playwright-report/

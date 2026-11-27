@@ -49,6 +49,15 @@ for (const viewport of [
     await expect(
       page.getByRole("button", { name: "点采样", exact: true }),
     ).toBeDisabled();
+    if (viewport.width === 1280) {
+      const [plot, scroll] = await Promise.all([
+        page.locator(".signal-plot").boundingBox(),
+        page.locator(".sampling-scroll").boundingBox(),
+      ]);
+      expect(plot!.y + plot!.height).toBeLessThanOrEqual(
+        scroll!.y + scroll!.height,
+      );
+    }
     await page.screenshot({
       path: `.impeccable/review/sampling-${viewport.width}.png`,
       fullPage: true,

@@ -275,6 +275,15 @@
   gap: 14px;
   margin-top: 16px;
 }
+@media (min-width: 961px) and (max-height: 800px) {
+  .sampling .sampling-heading {
+    padding-block: 12px;
+  }
+  .sampling-instruments .instrument-row {
+    padding-block: 13px;
+    margin-bottom: 8px;
+  }
+}
 @media (max-width: 960px) {
   .sampling-actions {
     padding-top: 20px;

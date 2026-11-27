@@ -54,7 +54,7 @@ node tools/native-smoke.mjs
 
 ## 验证与发布范围
 
-当前版本为 `v0.1.4` 预发布。飞控识别和刷写的操作步骤与适用范围见 [Windows 使用与部署](docs/windows.md#飞控固件刷写)。实船航行及采样按实机验收清单执行。
+当前版本为 `v0.1.5` 预发布。飞控识别和刷写的操作步骤与适用范围见 [Windows 使用与部署](docs/windows.md#飞控固件刷写)。实船航行及采样按实机验收清单执行。
 
 Jetson ARM64 router 已在授权空闲台架切换，数传载荷回程恢复，UART framing 错误仍存在。[数传问题记录](docs/map-payload-fix.md)
 
